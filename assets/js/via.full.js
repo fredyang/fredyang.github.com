@@ -1,5 +1,5 @@
 /*!
- * via JavaScript Library 0.1pre
+ * viaProxy 0.1
  * http://semanticsworks.com/p/viaproxy.html
  *
  * Copyright 2011, Fred Yang
@@ -7,7 +7,7 @@
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Thu Nov 24 23:01:51 2011 -0500
+ * Date: Tue Nov 29 00:56:13 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -76,10 +76,20 @@
 	};
 
 	arrayPrototype.pushUnique = arrayPrototype.pushUnique || function ( item ) {
-		if ( this.indexOf( item ) === -1 ) {
+		if ( !this.contains( item ) ) {
 			this.push( item );
 		}
 		return this;
+	};
+
+	var stringPrototype = String.prototype;
+
+	stringPrototype.beginsWith = stringPrototype.beginsWith || function ( text ) {
+		return this.indexOf( text ) === 0;
+	};
+
+	stringPrototype.contains = stringPrototype.contains || function ( text ) {
+		return this.indexOf( text ) !== -1;
 	};
 
 	function isObject( val ) {
@@ -104,7 +114,7 @@
 
 	extend( proxyPrototype, {
 
-		version: "0.1pre",
+		version: "0.1",
 
 		constructor: Proxy,
 
@@ -588,7 +598,7 @@
 
 		joinPath: function ( context, subPath ) {
 			return !subPath ? context :
-				context ? context + (subPath.toString().indexOf( "*" ) === 0 ? subPath : "." + subPath)
+				context ? context + (subPath.toString().beginsWith( "*" ) ? subPath : "." + subPath)
 					: subPath;
 		},
 
@@ -641,13 +651,13 @@
 
 			//remove reference that path is in referenced role
 			for ( var key in modelReferences ) {
-				if ( key.indexOf( path ) === 0 ) {
+				if ( key.beginsWith( path ) ) {
 					delete modelReferences[key];
 				}
 			}
 
 			//delete shadow object
-			if ( path.indexOf( ns ) !== 0 ) {
+			if ( !path.beginsWith( ns ) ) {
 				rootProxy.del( ns + "." + path.replace( rDot, "_" ) );
 			}
 
@@ -844,7 +854,7 @@
 				key2 = modelHandler.substring( 2 ),
 				currentValue;
 
-			if ( modelHandler.indexOf( "*" ) === 0 ) {
+			if ( modelHandler.beginsWith( "*" ) ) {
 
 				var commonModelHandler = commonModelHandlers[key1];
 
@@ -854,12 +864,12 @@
 
 				}
 
-			} else if ( modelHandler.indexOf( "$" ) === 0 ) {
+			} else if ( modelHandler.beginsWith( "$" ) ) {
 
 				if ( isFunction( jQueryFn[key1] ) ) {
 
 					currentValue = modelEvent.currentValue();
-					if ( "css,attr,prop".indexOf( key1 ) != -1 ) {
+					if ( "css,attr,prop".contains( key1 ) ) {
 
 						var propName = modelEvent.options || modelEvent.targetIndex();
 						$( view )[key1]( propName, currentValue );
@@ -871,7 +881,7 @@
 					return;
 				}
 
-			} else if ( modelHandler.indexOf( "v." ) === 0 ) {
+			} else if ( modelHandler.beginsWith( "v." ) ) {
 
 				if ( view[key2] ) {
 
@@ -959,7 +969,7 @@
 						}
 					} else {
 						//before*
-						if ( event.indexOf( match[1] ) === 0 ) {
+						if ( event.beginsWith( match[1] ) ) {
 							return true;
 						}
 					}
@@ -1055,7 +1065,7 @@
 
 	function buildModelHandlerOptions( modelHandler, options ) {
 
-		if ( isString( modelHandler ) && modelHandler.indexOf( "*" ) === 0 ) {
+		if ( isString( modelHandler ) && modelHandler.beginsWith( "*" ) ) {
 
 			modelHandler = commonModelHandlers[modelHandler.substring( 1 )];
 
@@ -1149,7 +1159,7 @@
 				var path = toPhysicalPath( pathOrViews );
 
 				for ( var key in modelHandlerData ) {
-					if ( key.indexOf( path ) === 0 ) {
+					if ( key.beginsWith( path ) ) {
 						delete modelHandlerData[key];
 					}
 				}
@@ -1371,7 +1381,7 @@
 				options = undefined;
 			}
 
-			if ( isString( viewHandler ) && viewHandler.indexOf( "*" ) === 0 ) {
+			if ( isString( viewHandler ) && viewHandler.beginsWith( "*" ) ) {
 
 				viewHandler = commonViewHandlers[viewHandler.substring( 1 )];
 
@@ -1395,8 +1405,8 @@
 				//if original viewEvents is "click,dblClick",
 				//and it bind to path "firstName", it will convert to
 				//click.__via.firstName,dblClick.__via.firstName, the reason is that
-				//when path is deleted, we need to unbindViewHandlerByPath, if
-				//firstName is deleted, we can unbind ".__via.firstName"
+				//when path is deleted, the method removeViewHandler(pathOrView) need to unbind
+				// event by a namespace, if firstName is deleted, we can unbind ".__via.firstName"
 				viewEvents = $.map(
 
 					viewEvents.split( rEventSeparator ),
@@ -1550,7 +1560,7 @@
 				fn;
 
 			//*xxx commonViewHandler
-			if ( viewHandler.indexOf( "*" ) === 0 ) {
+			if ( viewHandler.beginsWith( "*" ) ) {
 
 				var commonViewHandler = commonViewHandlers[key1];
 				if ( commonViewHandler ) {
@@ -1559,20 +1569,20 @@
 				}
 
 				//$xxx jQuery method
-			} else if ( viewHandler.indexOf( "$" ) === 0 ) {
+			} else if ( viewHandler.beginsWith( "$" ) ) {
 
 				if ( isFunction( jQueryFn[key1] ) ) {
 
 					return updateModel(
 						viewEvent,
-						( "css,attr,prop".indexOf( key1 ) != -1 ) ?
+						( "css,attr,prop".contains( key1 ) ) ?
 							$( this )[key1]( viewEvent.options || viewEvent.targetIndex() ) :
 							$( this )[key1]()
 					);
 				}
 
 				//p.xxx proxy method
-			} else if ( viewHandler.indexOf( "p." ) === 0 ) {
+			} else if ( viewHandler.beginsWith( "p." ) ) {
 
 				if ( isFunction( proxyPrototype[key2] ) ) {
 					//here execute the proxy method, "this" inside the function
@@ -1582,7 +1592,7 @@
 				}
 
 				//v.xxx view member
-			} else if ( viewHandler.indexOf( "v." ) === 0 ) {
+			} else if ( viewHandler.beginsWith( "v." ) ) {
 
 				fn = this[key2];
 
@@ -1594,7 +1604,7 @@
 				}
 
 				//m.xxx model member
-			} else if ( viewHandler.indexOf( "m." ) === 0 ) {
+			} else if ( viewHandler.beginsWith( "m." ) ) {
 
 				fn = rootProxy.get( true, key2 );
 				if ( isFunction( fn ) ) {
@@ -1616,7 +1626,7 @@
 		}
 
 		var options = viewEvent.options;
-		if ( isString( options ) && options.indexOf( "*" ) === 0 ) {
+		if ( isString( options ) && options.beginsWith( "*" ) ) {
 			var convert = valueConverters[options.substring( 1 )];
 			if ( convert ) {
 				value = convert( value );
@@ -1630,6 +1640,65 @@
 	$.cleanData = function ( elems ) {
 		via.removeView( elems );
 		_cleanData( elems );
+	};
+
+	via.forwardEvent = function ( oldEvent, newEvent, conditionFn ) {
+
+		var handler = function ( e ) {
+			if ( conditionFn( e ) ) {
+				$( e.target ).trigger( extend( {}, e, {
+					type: newEvent,
+					currentTarget: e.target
+				} ) );
+			}
+		};
+
+		if ( $.event.special[newEvent] ) {
+			throw "event '" + newEvent + "' has been defined";
+		}
+
+		$.event.special[newEvent] = {
+			setup: function () {
+				$( this ).bind( oldEvent, handler );
+			},
+			teardown: function () {
+				$( this ).unbind( oldEvent, handler );
+			}
+		};
+
+		return via;
+	};
+
+	function raiseViaEvent( e ) {
+
+		var viaEventType = e.data,
+			viaData = $( e.target ).data( "via" ),
+			viaEventName = viaData && viaData.viewEvents && viaData.viewEvents[viaEventType];
+
+		if ( viaEventName ) {
+			$( e.target ).trigger( extend( {}, e, {
+				type: viaEventType + "." + viaEventName,
+				currentTarget: e.target
+			} ) );
+		}
+	}
+
+	//viaEvent is a special kind of view event, different from normal event like "click"
+	//it is something like "action.delete", the "action" is 
+	//via.addViewEvent("action", "click")
+	via.addViaEvent = function ( viaEventType, originalEvent ) {
+		$.event.special[viaEventType] = {
+			setup: function () {
+				//TODO: think again
+				//make sure the handler is not double bound to the element
+				//$( this ).unbind( originalEvent, raiseViewEvent );
+				$( this ).bind( originalEvent, viaEventType, raiseViaEvent );
+			},
+			teardown: function () {
+				$( this ).unbind( originalEvent, raiseViaEvent );
+			}
+		};
+		return via;
 	};
 
 	jQueryFn.addViewHandler = function ( viewEvents, modelPath, viewHandler, options ) {
@@ -1651,7 +1720,9 @@
 		klass = "class",
 		builtInProps = "mh,vh,class,theme,path,options".split( "," ),
 		allBindings = {},
-		classMatchers = {};
+		classMatchers = {},
+		specialParsers,
+		viaBindingSet;
 
 	defaultOptions.theme = "via";
 
@@ -1667,15 +1738,15 @@
 	}
 
 	//build binding object from a string
-	function convertBindingTextToBindingObject( bindingText ) {
-		if ( !isString( bindingText ) ) {
+	function buildBinding( text ) {
+		if ( !isString( text ) ) {
 			throw "bindingText must non-empty string";
 		}
 
 		var rtn = {},
 			match, key, value;
 
-		while ( (match = rKeyValue.exec( bindingText )) ) {
+		while ( (match = rKeyValue.exec( text )) ) {
 			key = match[1];
 			value = (match[3] && $.trim( match[3] ) ) || true;
 			rtn[key] = rtn[key] ? rtn[key] + ";" + value : value;
@@ -1689,7 +1760,7 @@
 	function isThemeCached( themeName ) {
 		themeName = themeName + ".";
 		for ( var key in allBindings ) {
-			if ( key.indexOf( themeName ) === 0 ) {
+			if ( key.beginsWith( themeName ) ) {
 				return true;
 			}
 		}
@@ -1703,7 +1774,7 @@
 		if ( !themeName ) {
 			return false;
 		}
-		
+
 		if ( isThemeCached( themeName ) ) {
 			return true;
 		}
@@ -1749,7 +1820,7 @@
 		return rtn;
 	}
 
-	function attacheThemeHandlers( view, parentBinding, handlers ) {
+	function inheritHandlerDataFromTheme( view, parentBinding, handlerData ) {
 
 		//this is to avoid reserved word "class"
 		//if parentBinding.class is null or parentBinding.class === "_" or cannot locate bindingSet of the theme
@@ -1766,14 +1837,14 @@
 				themeViaData = allBindings[parentBinding.theme + "." + match[1]];
 
 			if ( themeViaData ) {
-				themeBinding = convertBindingTextToBindingObject( themeViaData );
-				themeBinding.path = buildPathWithContextAndIndex( parentBinding.path, match[3] );
+				themeBinding = buildBinding( themeViaData );
+				themeBinding.path = mergePath( parentBinding.path, match[3] );
 				themeBinding.theme = parentBinding.theme;
 				themeBinding.options = match[5] || parentBinding.options;
 				//
-				attacheThemeHandlers( view, themeBinding, handlers );
-				mergeHandlers( view, themeBinding, handlers );
-				applySpecialParser( view, themeBinding, handlers );
+				inheritHandlerDataFromTheme( view, themeBinding, handlerData );
+				buildHandlerData( view, themeBinding, handlerData );
+				applySpecialParser( view, themeBinding, handlerData );
 			}
 		}
 
@@ -1795,7 +1866,7 @@
 		return "";
 	}
 
-	function buildPathWithContextAndIndex( context, index ) {
+	function mergePath( context, index ) {
 
 		if ( !index || index == "." ) {
 
@@ -1811,7 +1882,7 @@
 
 			var match = /^(.+)\*/.exec( context );
 
-			if ( match && match[1] && index.indexOf( "*" ) === 0 ) {
+			if ( match && match[1] && index.beginsWith( "*" ) ) {
 				return match[1] + index;
 			} else {
 				//return context + index;
@@ -1823,7 +1894,7 @@
 	}
 
 	//merge the handlers to handlers object
-	function mergeHandlers( view, binding, handlers ) {
+	function buildHandlerData( view, binding, handlers ) {
 		mergeHandlersByType( "mh", view, binding, handlers );
 		mergeHandlersByType( "vh", view, binding, handlers );
 	}
@@ -1845,7 +1916,7 @@
 				continue;
 			}
 
-			path = buildPathWithContextAndIndex( binding.path, match[1] );
+			path = mergePath( binding.path, match[1] );
 
 			handlers[handlerType].push( handlerType === "mh" ? {
 				path: path,
@@ -1871,77 +1942,75 @@
 
 			if ( hasOwn.call( binding, prop ) &&
 			     !builtInProps.contains( prop ) &&
-			     (parse = via.specialParsers[prop]) ) {
+			     (parse = specialParsers[prop]) ) {
 				//if the keys is not defined in builtin processing keywords
 				//it is importer
-				parse( view, binding, handlers, binding[prop]);
+				parse( view, binding, handlers, binding[prop] );
 			}
 		}
 	}
 
-	function buildHandlers( view ) {
+	//this can be call multiple times
+	//it returns handlerData, also persist binding into $(view)data("via")
+	function processViaAttr( view ) {
 
-		var userBinding = $( view ).data( "via" );
+		//process
 
-		if ( !userBinding ) {
+		var binding = $( view ).attr( "via" );
+
+		if ( !binding ) {
 			return;
 		}
 
-		if ( isObject( userBinding ) ) {
-			return userBinding;
-		}
+		binding = buildBinding( binding );
+		$( view ).data( "via", binding );
 
-		userBinding = convertBindingTextToBindingObject( userBinding );
-
-		$( view ).data( "via", userBinding );
-
-		if ( userBinding.path && userBinding.path !== "." ) {
+		if ( binding.path && binding.path !== "." ) {
 			//this is the case when path is not empty, but it is not "."
 
-			if ( rUseBindingPathAsContext.exec( userBinding.path ) ) {
+			if ( rUseBindingPathAsContext.exec( binding.path ) ) {
 				//this is the case when path begin with . or *
 				// like .firstName or *.index,
-				userBinding.path = getPathOfParentView( view ) + userBinding.path;
+				binding.path = getPathOfParentView( view ) + binding.path;
 			}
 
 		} else {
 
 			//this is the case when userBinding.path is not available
 			//or when it is "."
-			userBinding.path = getPathOfParentView( view );
+			binding.path = getPathOfParentView( view );
 		}
 
 		//if userBinding.theme is not available,
 		// if userBinding.path is null, then use default theme
 		// otherwise disable theme
-		userBinding.theme = userBinding.theme || defaultOptions.theme;
+		binding.theme = binding.theme || defaultOptions.theme;
 
-		var rtnHandlers = {
+		var handlerData = {
 			mh: [],
 			vh: []
 		};
 
-		userBinding[klass] = userBinding[klass] || getDefaultClass( view );
-		attacheThemeHandlers( view, userBinding, rtnHandlers );
-		mergeHandlers( view, userBinding, rtnHandlers );
-		applySpecialParser( view, userBinding, rtnHandlers );
+		binding[klass] = binding[klass] || getDefaultClass( view );
+		inheritHandlerDataFromTheme( view, binding, handlerData );
+		buildHandlerData( view, binding, handlerData );
+		applySpecialParser( view, binding, handlerData );
 
-
-		return rtnHandlers;
+		return handlerData;
 	}
 
-	function addHandlers( handlers ) {
-		if ( !handlers ) {
+	function addHandlers( handlerData ) {
+		if ( !handlerData ) {
 			return;
 		}
 		var i,
-			commonModelHandlers = handlers.mh,
-			commonViewHandlers = handlers.vh,
+			modelHandlerData = handlerData.mh,
+			viewHandlerData = handlerData.vh,
 			modelHandler,
 			viewHandler;
 
-		for ( i = 0; i < commonModelHandlers.length; i++ ) {
-			modelHandler = commonModelHandlers[i];
+		for ( i = 0; i < modelHandlerData.length; i++ ) {
+			modelHandler = modelHandlerData[i];
 			via.addModelHandler(
 				modelHandler.path,
 				modelHandler.modelEvents,
@@ -1950,8 +2019,8 @@
 				modelHandler.options );
 		}
 
-		for ( i = 0; i < commonViewHandlers.length; i++ ) {
-			viewHandler = commonViewHandlers[i];
+		for ( i = 0; i < viewHandlerData.length; i++ ) {
+			viewHandler = viewHandlerData[i];
 			via.addViewHandler(
 				viewHandler.view,
 				viewHandler.viewEvents,
@@ -1972,7 +2041,7 @@
 		 }
 		 you can use this as extension to add special handlers, such as validation
 		 * */
-		specialParsers: {},
+		specialParsers: specialParsers = {},
 
 		/*an objects that determine if a view match a class
 		 {
@@ -1983,31 +2052,45 @@
 		 * */
 		classMatchers: classMatchers,
 
-		parseView: function ( views ) {
-			return $( views ).each( function () {
-				var binding = $( this ).data( "via" );
-				if ( !binding || binding.parsed ) {
-					return;
+		view: function ( objects ) {
+			objects = objects || ":via";
+			return $( objects ).each( function () {
+				//prevent a view being parse more than once
+				if ( !$( this ).data( "via" ) ) {
+					addHandlers( processViaAttr( this ) );
 				}
-				addHandlers( buildHandlers( this ) );
-				$( this ).data( "via" ).parsed = true;
 			} );
 		},
 
 		themes: {
 			via: {
 				subThemes: undefined,
-				bindingSet: {}
+				bindingSet: viaBindingSet = {}
 			}
 		}
 	} );
 
-	$.expr[":"].via = function ( elem ) {
-		return !!$( elem ).data( "via" );
+	//@viewEvent:action.edit,
+	specialParsers.viaEvent = function ( view, binding, handlers, specialOptions ) {
+
+		if ( !binding.viewEvents ) {
+			binding.viewEvents = {};
+		}
+		var events = specialOptions.split( "," );
+
+		for ( var i = 0; i < events.length; i++ ) {
+			var parts = events[i].split( "." );
+			binding.viewEvents[parts[0]] = parts[1];
+		}
 	};
 
-	jQueryFn.parseView = function () {
-		return via.parseView( this );
+	$.expr[":"].via = function ( elem ) {
+		return !!$( elem ).attr( "via" );
+	};
+
+	jQueryFn.view = function () {
+		via.view( this.findAll( ":via" ) );
+		return this;
 	};
 
 
@@ -2078,7 +2161,7 @@
 
 			var content = via.renderTemplate( options.templateId, dataSource, options );
 			$( this ).html( content );
-			content.findAll( ":via" ).parseView();
+			content.view();
 		} else {
 			$( this ).empty();
 		}
