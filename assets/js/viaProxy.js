@@ -1,13 +1,13 @@
 /*!
- * viaProxy 0.1
- * http://semanticsworks.com/p/viaproxy.html
+ * viaProxy.js JavaScript Library 0.2pre
+ * http://semanticsworks.com
  *
  * Copyright 2011, Fred Yang
  * Dual licensed under the MIT or GPL Version 2 licenses.
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Tue Nov 29 00:56:13 2011 -0500
+ * Date: Wed Dec 14 01:37:31 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -45,25 +45,6 @@
 		//to be override in 03-modelHandler
 		raiseEvent;
 
-	//#debug
-	//if you are using debug version of the library
-	//you can use debugging facilities provided here
-	//they are also used in unit test to test some internal variable which is
-	//not exposed in production version
-	//In debug version, you can turn on logging by setting via.debug.enableLog = true
-	//and turn on debugger by setting via.debug.enableDebugger = true
-	//
-	//In production version, there is no logging or debugger facilities
-	via.debug = {};
-	via.debug.enableLog = true;
-	via.debug.enableDebugger = false;
-
-	window.log = window.log || function() {
-		if ( via.debug.enableLog && this.console ) {
-			console.log( Array.prototype.slice.call( arguments ) );
-		}
-	};
-	//#end_debug
 
 
 	function Proxy( context ) {
@@ -101,6 +82,22 @@
 		return this;
 	};
 
+	arrayPrototype.sortObject = arrayPrototype.sortObject || function ( by, asc ) {
+		if ( by ) {
+			this.sort( function ( a, b ) {
+				var av = a[by];
+				var bv = b[by];
+				if ( av == bv ) {
+					return 0;
+				}
+				return  asc ? (av > bv) ? 1 : -1 :
+					(av > bv) ? -1 : 1;
+			} );
+		} else {
+			asc ? this.sort() : this.sort().reverse();
+		}
+	};
+
 	var stringPrototype = String.prototype;
 
 	stringPrototype.beginsWith = stringPrototype.beginsWith || function ( text ) {
@@ -133,7 +130,7 @@
 
 	extend( proxyPrototype, {
 
-		version: "0.1",
+		version: "0.2pre",
 
 		constructor: Proxy,
 
@@ -387,6 +384,13 @@
 			return this.create( this.get().length, item );
 		},
 
+		pushRange: function ( items ) {
+			for ( var i = 0; i < items.length; i++ ) {
+				this.push( items[i] );
+			}
+			return this;
+		},
+
 		pushUnique: function ( item ) {
 			return !this.contains( item ) ?
 				this.push( item ) :
@@ -442,6 +446,10 @@
 
 		count: function () {
 			return this.get().length;
+		},
+
+		sort: function ( by, asc ) {
+			return via.raiseEvent( this.context, this.context, "init", this.get().sortObject( by, asc ) );
 		}
 	} );
 
@@ -607,7 +615,6 @@
 	}
 
 	function removePath( contextPath, index ) {
-		log( "deleting children of " + contextPath + "." + index );
 		rootProxy.del( contextPath + "." + index );
 	}
 
@@ -860,10 +867,6 @@
 	//execute the true model handler
 	//this function does not return anything, the result is carried in side in modelEvent
 	function invokeModelHandler( view, modelHandler, modelEvent ) {
-		//#debug
-		var value = modelEvent.targetValue( true );
-		log( "mh", modelEvent.eventType, via.logicalPath( modelEvent.target ), modelHandler, (view === dummyView ? "dummyView" : view), isFunction( value ) ? "function call" : value, modelEvent.options );
-		//#end_debug
 
 		if ( view === dummyView ) {
 			view = null;
@@ -1015,13 +1018,13 @@
 	//		proposed: "", //available in beforeUpdate beforeAdd
 	//		removed: "" //available in afterUpdate or afterDel,
 	//	};
-	function ModelEvent( path, target, eventType, proposed, removed ) {
+	function ModelEvent( currentPath, targetPath, eventType, proposed, removed ) {
 
-		if ( isObject( path ) ) {
-			extend( this, path );
+		if ( isObject( currentPath ) ) {
+			extend( this, currentPath );
 		} else {
-			this.path = path;
-			this.target = target;
+			this.path = currentPath;
+			this.target = targetPath;
 			this.eventType = eventType;
 			!isUndefined( proposed ) && (this.proposed = proposed);
 			!isUndefined( removed ) && (this.removed = removed);
@@ -1087,7 +1090,7 @@
 		}
 	};
 
-	function buildModelHandlerOptions( modelHandler, options ) {
+	function buildModelHandlerOptions(view, modelHandler, options ) {
 
 		if ( isString( modelHandler ) && modelHandler.beginsWith( "*" ) ) {
 
@@ -1097,7 +1100,7 @@
 
 		if ( isFunction( modelHandler.buildOptions ) ) {
 
-			options = modelHandler.buildOptions( options );
+			options = modelHandler.buildOptions.call(view, options );
 		}
 		return options;
 	}
@@ -1151,7 +1154,7 @@
 
 			views.each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				markAsView( this );
 				modelHandlerData[path].push( {
@@ -1260,7 +1263,7 @@
 
 			$( views ).each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				//"this" refers to a view
 				invokeModelHandler( this, modelHandler, new ModelEvent( {
@@ -1306,41 +1309,6 @@
 		return this;
 	};
 
-	//#debug
-	via.debug.enableDebugger = false;
-
-	via.commonModelHandlers.log = function ( modelEvent ) {
-
-		var value = modelEvent.targetValue( true );
-		log( modelEvent.eventType.replace( ".child", "" ), via.logicalPath( modelEvent.target ), isFunction( value ) ? "function call" : value );
-
-		var enableDebugger = via.debug.enableDebugger;
-		if ( isFunction( enableDebugger ) ) {
-			enableDebugger = enableDebugger();
-		}
-		if ( enableDebugger ) {
-			debugger;
-		}
-	};
-
-	var logger = {};
-	//add handler to the root object, so that all successful CRUD will
-	//trigger this handler, the handler provide some debugging facilities
-	//via.addModelHandler( "", "after", "*log" );
-	via.debug.enableRootHandler = function ( eventType ) {
-		via.removeModelHandler( logger );
-		eventType = eventType || "*";
-		via.addModelHandler( "", eventType, logger, "*log" );
-	};
-
-	via.debug.disableRootHandler = function () {
-		via.removeModelHandler( logger );
-	}
-
-	via.debug.shouldUpdateView = shouldUpdateView;
-	via.debug.dummyView = dummyView;
-	via.debug.isView = isView;
-	//#end_debug
 
 /* depends: proxy.js, modelEvent.js, modelHandler.js */
 /*depends */
@@ -1607,7 +1575,6 @@
 			viewEvent = new ViewEvent( eventData.path, options, e, triggerData ),
 			viewHandler = eventData.viewHandler;
 
-		log( "vh", viewEvent.e.type, via.logicalPath( viewEvent.path ), eventData.originalHandler, eventData.options );
 
 		if ( isFunction( viewHandler ) ) {
 
@@ -1702,27 +1669,27 @@
 		_cleanData( elems );
 	};
 
-	via.forwardEvent = function ( oldEvent, newEvent, conditionFn ) {
+	via.forwardEvent = function ( fromEvent, toEvent, whenFn ) {
 
 		var handler = function ( e ) {
-			if ( conditionFn( e ) ) {
+			if ( whenFn( e ) ) {
 				$( e.target ).trigger( extend( {}, e, {
-					type: newEvent,
+					type: toEvent,
 					currentTarget: e.target
 				} ) );
 			}
 		};
 
-		if ( $.event.special[newEvent] ) {
-			throw "event '" + newEvent + "' has been defined";
+		if ( $.event.special[toEvent] ) {
+			throw "event '" + toEvent + "' has been defined";
 		}
 
-		$.event.special[newEvent] = {
+		$.event.special[toEvent] = {
 			setup: function () {
-				$( this ).bind( oldEvent, handler );
+				$( this ).bind( fromEvent, handler );
 			},
 			teardown: function () {
-				$( this ).unbind( oldEvent, handler );
+				$( this ).unbind( fromEvent, handler );
 			}
 		};
 
@@ -1765,6 +1732,840 @@
 		via.addViewHandler( this, viewEvents, modelPath, viewHandler, options );
 		return this;
 	};
+
+
+
+	var rUseBindingPathAsContext = /^[\.\*]\w+/,
+		rUseBindingContextAsContext = /^\.([\.\*])/,
+		rSpace = /\s+/g,
+		//@name:john@age:23@ignore, will be separate into name:john, age:23, ignore
+		rKeyValue = /\s*@(\w+)(:([^@]+))*/g,
+		rSemicolonSeparator = /\s*;\s*/g,
+		//rCommaSeparator = /\s*,\s*/g,
+		rClass = /(.+?)(,(.+?))?(,(.+))*$/,
+		rHandlers = /(.+?),(.+?),(.+?)(,(.+))*$/,
+		klass = "class",
+		builtInProps = "mh,vh,class,theme,path,options".split( "," ),
+		allBindings = {},
+		classMatchers = {},
+		specialParsers,
+		viaBindingSet;
+
+	defaultOptions.theme = "via";
+
+	//get default class name
+	function getDefaultClass( view ) {
+		for ( var className in classMatchers ) {
+			if ( hasOwn.call( classMatchers, className ) ) {
+				if ( classMatchers[className]( view ) ) {
+					return className;
+				}
+			}
+		}
+	}
+
+	//build binding object from a string
+	function buildBinding( text ) {
+		if ( !isString( text ) ) {
+			throw "bindingText must non-empty string";
+		}
+
+		var rtn = {},
+			match, key, value;
+
+		while ( (match = rKeyValue.exec( text )) ) {
+			key = match[1];
+			value = (match[3] && $.trim( match[3] ) ) || true;
+			rtn[key] = rtn[key] ? rtn[key] + ";" + value : value;
+		}
+
+		return rtn;
+	}
+
+	//check allBinding for first part of full qualified class name,
+	//which is themeName + "."
+	function isThemeCached( themeName ) {
+		themeName = themeName + ".";
+		for ( var key in allBindings ) {
+			if ( key.beginsWith( themeName ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	//returns true if it a theme has bindingSet, otherwise false
+	//a bindingSet can be is direct bindingSet, or from subThemes
+	function locateBindingSetFromTheme( themeName ) {
+
+		if ( !themeName ) {
+			return false;
+		}
+
+		if ( isThemeCached( themeName ) ) {
+			return true;
+		}
+
+		var bindingSets = buildBindingSetsFromTheme( themeName );
+		if ( !bindingSets ) {
+			return false;
+		}
+
+		//combine all the bindingSets into allBinding,
+		//each class of a binding is fully qualified as themeName.className (eg. via.textBox)
+		for ( var i = 0, bindingSet; (bindingSet = bindingSets[i]); i ++ ) {
+			for ( var className in bindingSet ) {
+				var value = bindingSet[className];
+				var fullClassName = themeName + "." + className;
+				//merge the binding if exists, otherwise append
+				allBindings[fullClassName] = allBindings[fullClassName] ? allBindings[fullClassName] + value : value;
+			}
+		}
+		return true;
+	}
+
+	//return an array of bindingSets
+	//like [ {textBox: "..."} , {label: ".."} ]
+	//because a theme may have subThemes, and subTheme may have its bindingSet
+	//this method try to aggregate all the bindingSets into an array
+	function buildBindingSetsFromTheme( themeName ) {
+		var theme = via.themes[themeName];
+		if ( !theme ) {
+			return;
+		}
+
+		var rtn = [];
+		theme.bindingSet && rtn.push( theme.bindingSet );
+
+		var subThemes = theme.subThemes;
+		if ( subThemes ) {
+			subThemes = subThemes.split( ";" );
+			for ( var i = 0; i < subThemes.length; i++ ) {
+				rtn = rtn.concat( buildBindingSetsFromTheme( subThemes[i] ) );
+			}
+		}
+		return rtn;
+	}
+
+	function inheritHandlerDataFromTheme( view, parentBinding, handlerData ) {
+
+		//this is to avoid reserved word "class"
+		//if parentBinding.class is null or parentBinding.class === "_" or cannot locate bindingSet of the theme
+		if ( !parentBinding[klass] || (parentBinding[klass] === "_") || !locateBindingSetFromTheme( parentBinding.theme ) ) {
+			return;
+		}
+
+		var classes = parentBinding[klass].split( rSemicolonSeparator );
+		var themeBinding;
+
+		for ( var i = 0; i < classes.length; i++ ) {
+			//a class can be just a class name, or it can be className,path,options
+			var match = rClass.exec( classes[i] ),
+				themeViaData = allBindings[parentBinding.theme + "." + match[1]];
+
+			if ( themeViaData ) {
+				themeBinding = buildBinding( themeViaData );
+				themeBinding.path = mergePath( parentBinding.path, match[3] );
+				themeBinding.theme = parentBinding.theme;
+				themeBinding.options = match[5] || parentBinding.options;
+				//
+				inheritHandlerDataFromTheme( view, themeBinding, handlerData );
+				buildHandlerData( view, themeBinding, handlerData );
+				applySpecialParser( view, themeBinding, handlerData );
+			}
+		}
+
+	}
+
+	function getPathOfParentView( view ) {
+
+		var $parent = $( view );
+
+		while ( ($parent = $parent.parent()) && $parent.length ) {
+
+			var bindings = $parent.data( "via" );
+
+			if ( bindings && bindings.path ) {
+
+				return bindings.path;
+			}
+		}
+		return "";
+	}
+
+	function mergePath( context, index ) {
+
+		if ( !index || index == "." ) {
+
+			return context;
+
+		} else if ( rUseBindingContextAsContext.test( index ) ) {
+
+			//use binding's context as context
+			//.. or .*
+			return  index.replace( rUseBindingContextAsContext, via.contextOfPath( context ) + "$1" );
+
+		} else if ( rUseBindingPathAsContext.test( index ) ) {
+
+			var match = /^(.+)\*/.exec( context );
+
+			if ( match && match[1] && index.beginsWith( "*" ) ) {
+				return match[1] + index;
+			} else {
+				//return context + index;
+				return index.replace( rUseBindingPathAsContext, context + "$&" );
+			}
+
+		}
+		return index;
+	}
+
+	//merge the handlers to handlers object
+	function buildHandlerData( view, binding, handlers ) {
+		mergeHandlersByType( "mh", view, binding, handlers );
+		mergeHandlersByType( "vh", view, binding, handlers );
+	}
+
+	//merge the handlers to handlers object by type
+	function mergeHandlersByType( handlerType, view, binding, handlers ) {
+
+		var i, match, path, handlerEntries;
+
+		handlerEntries = binding[handlerType] && binding[handlerType].replace( rSpace, "" ).split( ";" );
+		if ( !handlerEntries ) {
+			return;
+		}
+
+		for ( i = 0; i < handlerEntries.length; i++ ) {
+			// /(.+?),(.+?),(.+?)(,(.+))*$/;
+			match = rHandlers.exec( handlerEntries[i] );
+			if ( !match ) {
+				continue;
+			}
+
+			path = mergePath( binding.path, match[1] );
+
+			handlers[handlerType].push( handlerType === "mh" ? {
+				path: path,
+				modelEvents: match[2],
+				view: view,
+				modelHandler: match[3],
+				options: match[5] || binding.options
+			} : {
+				path: path,
+				viewEvents: match[2],
+				view: view,
+				viewHandler: match[3],
+				options: match[5] || binding.options
+			} );
+
+		}
+	}
+
+	function applySpecialParser( view, binding, handlers ) {
+
+		var parse;
+		for ( var prop in binding ) {
+
+			if ( hasOwn.call( binding, prop ) &&
+			     !builtInProps.contains( prop ) &&
+			     (parse = specialParsers[prop]) ) {
+				//if the keys is not defined in builtin processing keywords
+				//it is importer
+				parse( view, binding, handlers, binding[prop] );
+			}
+		}
+	}
+
+	//this can be call multiple times
+	//it returns handlerData, also persist binding into $(view)data("via")
+	function processViaAttr( view ) {
+
+		//process
+
+		var binding = $( view ).attr( "via" );
+
+		if ( !binding ) {
+			return;
+		}
+
+		binding = buildBinding( binding );
+		$( view ).data( "via", binding );
+
+		if ( binding.path && binding.path !== "." ) {
+			//this is the case when path is not empty, but it is not "."
+
+			if ( rUseBindingPathAsContext.exec( binding.path ) ) {
+				//this is the case when path begin with . or *
+				// like .firstName or *.index,
+				binding.path = getPathOfParentView( view ) + binding.path;
+			}
+
+		} else {
+
+			//this is the case when userBinding.path is not available
+			//or when it is "."
+			binding.path = getPathOfParentView( view );
+		}
+
+		//if userBinding.theme is not available,
+		// if userBinding.path is null, then use default theme
+		// otherwise disable theme
+		binding.theme = binding.theme || defaultOptions.theme;
+
+		var handlerData = {
+			mh: [],
+			vh: []
+		};
+
+		binding[klass] = binding[klass] || getDefaultClass( view );
+		inheritHandlerDataFromTheme( view, binding, handlerData );
+		buildHandlerData( view, binding, handlerData );
+		applySpecialParser( view, binding, handlerData );
+
+		return handlerData;
+	}
+
+	function addHandlers( handlerData ) {
+		if ( !handlerData ) {
+			return;
+		}
+		var i,
+			modelHandlerData = handlerData.mh,
+			viewHandlerData = handlerData.vh,
+			modelHandler,
+			viewHandler;
+
+		for ( i = 0; i < modelHandlerData.length; i++ ) {
+			modelHandler = modelHandlerData[i];
+			via.addModelHandler(
+				modelHandler.path,
+				modelHandler.modelEvents,
+				modelHandler.view,
+				modelHandler.modelHandler,
+				modelHandler.options );
+		}
+
+		for ( i = 0; i < viewHandlerData.length; i++ ) {
+			viewHandler = viewHandlerData[i];
+			via.addViewHandler(
+				viewHandler.view,
+				viewHandler.viewEvents,
+				viewHandler.path,
+				viewHandler.viewHandler,
+				viewHandler.options );
+
+		}
+	}
+
+	extend( via, {
+
+		/*an object of collection of import function
+		 {
+		 parserName : function (view, binding, handlers ) {
+		 handlers.mh.push("...");
+		 }
+		 }
+		 you can use this as extension to add special handlers, such as validation
+		 * */
+		specialParsers: specialParsers = {},
+
+		/*an objects that determine if a view match a class
+		 {
+		 className1: function (view) {
+		 return true;
+		 }
+		 }
+		 * */
+		classMatchers: classMatchers,
+
+		view: function ( objects ) {
+			objects = objects || ":via";
+			return $( objects ).each( function () {
+				//prevent a view being parse more than once
+				if ( !$( this ).data( "via" ) ) {
+					addHandlers( processViaAttr( this ) );
+				}
+			} );
+		},
+
+		themes: {
+			via: {
+				subThemes: undefined,
+				bindingSet: viaBindingSet = {}
+			}
+		}
+	} );
+
+	//@viaEvent:action.edit,
+	specialParsers.viaEvent = function ( view, binding, handlers, specialOptions ) {
+
+		if ( !binding.viewEvents ) {
+			binding.viewEvents = {};
+		}
+		var events = specialOptions.split( "," );
+
+		for ( var i = 0; i < events.length; i++ ) {
+			var parts = events[i].split( "." );
+			binding.viewEvents[parts[0]] = parts[1];
+		}
+	};
+
+	$.expr[":"].via = function ( elem ) {
+		return !!$( elem ).attr( "via" );
+	};
+
+	jQueryFn.view = function () {
+		via.view( this.findAll( ":via" ) );
+		return this;
+	};
+
+
+
+
+	//findAll is different from find in that it not only find its children
+	//but it also find elements of itself.
+	$.fn.findAll = $.fn.findAll || function ( selector ) {
+
+		if ( this.length === 0 ) {
+			return this;
+		} else {
+			var rtn = this.filter( selector );
+			this.each( function () {
+				rtn = rtn.add( $( this ).find( selector ) );
+			} );
+			return rtn;
+		}
+	};
+
+	//support function ( templateId, dataSource, callback, engineName )
+	//function ( templateId, dataSource, options, engineName )
+	//callback is a function ($content) {
+	// //this refers to the view
+	//}
+	via.renderTemplate = function ( templateId, dataSource, options, engineName ) {
+		engineName = engineName || options && options.engine || defaultOptions.engine;
+
+		if ( !engineName ) {
+			throw "there is not default engine registered";
+		}
+
+		var view = this,
+			callback = options && ($.isFunction( options ) ? options : options.callback),
+			engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
+
+		options = options || {};
+		options.get = function ( fullPath ) {
+			return rootProxy.get( fullPath );
+		};
+
+		if ( !engine ) {
+			throw "engine '" + engine + "' can not be found.";
+		}
+
+		var $content;
+
+		if ( engine.isTemplateCompiled( templateId ) ) {
+
+			$content = $( engine.renderTemplate( templateId, dataSource, options ) );
+			callback && callback.call( view, $content );
+			return $content;
+
+		} else if ( typeof matrix !== "undefined" ) {
+
+			var defer = $.Deferred();
+			matrix( matrix.resourceName( templateId ) + ".template" ).done( function () {
+				$content = $( engine.renderTemplate( templateId, dataSource, options ) );
+				defer.resolve( $content );
+			} );
+
+			return defer.promise().done( function () {
+				callback && callback.call( view, $content );
+			} );
+		}
+
+		throw "can not locate template for '" + templateId + "'";
+
+	};
+
+	$.fn.renderTemplate = function ( templateId, dataSource, options, engineName ) {
+		return this.each( function () {
+			via.renderTemplate.call( this, templateId, dataSource, options, engineName );
+		} );
+	};
+
+	via.compileTemplate = function ( templateId, source, engineName ) {
+
+		engineName = engineName || defaultOptions.engine;
+
+		if ( !engineName ) {
+			throw "there is not default engine registered";
+		}
+
+		var engine = templateEngines[engineName];
+
+		if ( !engine ) {
+			throw "engine '" + engine + "' can not be found.";
+		}
+		return engine.compileTemplate( templateId, source );
+
+	};
+
+	via.isTemplateComplied = function ( templateId, engineName ) {
+		engineName = engineName || defaultOptions.engine;
+
+		if ( !engineName ) {
+			throw "there is not default engine registered";
+		}
+
+		var engine = templateEngines[engineName];
+
+		if ( !engine ) {
+			throw "engine '" + engine + "' can not be found.";
+		}
+		return engine.isTemplateComplied( templateId );
+	};
+
+	function template( modelEvent ) {
+		var dataSource = modelEvent.currentValue();
+
+		//dataSource can be an non-empty array
+		//or it can be an non-empty non-array
+		if ( dataSource && ((isArray( dataSource ) && dataSource.length) || !isArray( dataSource ) ) ) {
+
+			var options = modelEvent.options;
+			options.callback = function ( $content ) {
+				$( this ).html( $content );
+				$content.view();
+			};
+
+			via.renderTemplate.call( this, options.templateId, dataSource, options );
+
+		} else {
+			$( this ).empty();
+		}
+	}
+
+	//templateOne is a workaround over jquery-tmpl, if the dataSource is an array, but we
+	//want to treat it as an object, we need this 
+	function templateOne( modelEvent ) {
+		var currentValue = modelEvent.currentValue();
+		modelEvent.currentValue = function () {
+			return [currentValue];
+		};
+		template.call( this, modelEvent );
+	}
+
+	templateOne.buildOptions = template.buildOptions = function ( options ) {
+		if ( isString( options ) ) {
+			options = options.split( "," );
+			return {
+				templateId: $.trim( options[0] ),
+				engineName: options[1]
+			};
+		}
+		return options;
+	};
+
+	extend( commonModelHandlers, {
+		template: template,
+		templateOne: templateOne
+	} );
+
+	var templateEngines = via.templateEngines = {};
+
+//
+
+
+
+	if ( $.tmpl ) {
+
+		defaultOptions.engine = "tmpl";
+
+		templateEngines.tmpl = {
+
+			renderTemplate: function ( templateId, dataSource, options ) {
+				return templateId.beginsWith( "#" ) ?
+					$( templateId ).tmpl( dataSource, options ) :
+					$.tmpl( templateId, dataSource, options );
+			},
+
+			compileTemplate: function ( templateId, source ) {
+				$.template( templateId, source );
+			},
+
+			isTemplateCompiled: function ( templateId ) {
+				return templateId.beginsWith( "#" ) ? !! $( templateId ).length :
+					!!$.template[templateId];
+			}
+		};
+
+		//use "else if" instead of "if", because both jsrender and tmpl use $.template
+		//otherwise they can run side by side
+	} else if ( $.render ) {
+
+		defaultOptions.engine = "jsrender";
+
+		templateEngines.jsrender = {
+
+			renderTemplate: function ( templateId, dataSource, options ) {
+
+				return templateId.beginsWith( "#" ) ?
+
+					$( templateId ).render( dataSource, options ) :
+
+					$.render( dataSource, templateId, options );
+			},
+
+			compileTemplate: function ( templateId, source ) {
+				$.template( templateId, source );
+			},
+
+			isTemplateCompiled: function ( templateId ) {
+				return templateId.beginsWith( "#" ) ? !! $( templateId ).length :
+					!!$.views.templates[templateId];
+			}
+		};
+	}
+
+
+
+//
+
+
+	if ( templateEngines.tmpl ) {
+
+		via.compileTemplate( "ddl_tmpl", "<option value='${this.value($data)}'>${this.name($data)}</option>" );
+	}
+
+	if ( templateEngines.jsrender ) {
+
+		via.compileTemplate( "ddl_jsrender", "<option value='{{=$ctx.value($data)}}'>{{=$ctx.name($data)}}</option>", "jsrender" );
+
+	}
+
+	extend( commonModelHandlers, {
+
+		dropdown:extend(
+
+			function ( modelEvent ) {
+				//	function template( modelEvent ) {
+				commonModelHandlers.template.call( this, modelEvent );
+			},
+			{
+				buildOptions: function ( options ) {
+
+					//name,value,engine
+					var parts = (options || "").split( "," );
+
+					options = parts.length === 1 ?
+						//only engine name is specified
+					{
+						name: function ( item ) {
+							return item.toString();
+						},
+						value: function ( item ) {
+							return item.toString();
+						},
+						engine: options
+					} :
+						//all name, value, engine name is specified
+					{
+						name : function ( item ) {
+							return item[parts[0]];
+						},
+						value : function ( item ) {
+							return item[parts[1]];
+						},
+						engine: parts[2]
+					};
+
+					options.templateId = "ddl_" + (options.engine || defaultOptions.engine);
+					return options;
+				}
+			}
+		),
+
+		//add a new item to to list view
+		pushViewItem: function ( modelEvent ) {
+
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(), function ( $content ) {
+				$content.appendTo( this ).view();
+			} );
+
+		},
+
+		//remove an item from list view
+		removeViewItem: function ( modelEvent ) {
+			$( this ).children().eq( +modelEvent.targetIndex() ).remove();
+		},
+
+		//update an item in the list view
+		updateViewItem: function ( modelEvent ) {
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(),
+				function ( $content ) {
+					$( this ).children().eq( modelEvent.targetIndex() ).replaceWith( $content );
+					$content.view();
+				} );
+		},
+
+		//show a view if model is not empty
+		showIfTruthy : function ( modelEvent ) {
+			$( this )[ modelEvent.isModelEmpty() ? "hide" : "show"]();
+		},
+
+		//show a view if model is falsy
+		showIfFalsy: function ( modelEvent ) {
+
+			$( this )[ modelEvent.isModelEmpty() ? "show" : "hide"]();
+		},
+
+		enableIfTruthy: function ( modelEvent ) {
+			$( this ).attr( "disabled", modelEvent.isModelEmpty() );
+		},
+
+		enableIfFalsy: function ( modelEvent ) {
+			$( this ).attr( "disabled", !modelEvent.isModelEmpty() );
+		},
+
+		//update text box only when the new value is different from the value of the text box
+		//this is prevent circular update
+		val : function ( modelEvent ) {
+			var value = modelEvent.currentValue();
+			if ( value !== $( this ).val() ) {
+				$( this ).val( value );
+			}
+		}
+	} );
+
+	extend( commonViewHandlers, {
+
+		//return a static value (from options) to be used to update model
+		value : function ( viewEvent ) {
+			return isFunction( viewEvent.options ) ?
+				viewEvent.options() :
+				viewEvent.options;
+		},
+
+		//return a eval value (from options) to be used to update model
+		evalOptions: function ( viewEvent ) {
+			return eval( viewEvent.options );
+		},
+
+		stringOptions: function ( viewEvent ) {
+			return viewEvent.options;
+		},
+
+		numberOptions: function( viewEvent ) {
+			return +viewEvent.options;
+		},
+
+		trueValue: function () {
+			return true;
+		},
+
+		falseValue: function () {
+			return false;
+		},
+		//return opposite value of the current model to be used to update model
+		toggle: function ( viewEvent ) {
+			return !viewEvent.targetValue();
+		},
+
+		trueIfCheck: function () {
+			return this.checked;
+		},
+
+		trueIfUncheck: function () {
+			return !this.checked;
+		},
+
+		returnFalse: function ( viewEvent ) {
+			viewEvent.returnFalse();
+		},
+
+		preventDefault: function ( viewEvent ) {
+			viewEvent.e.preventDefault();
+		},
+
+		stopBubble : function ( viewEvent ) {
+			viewEvent.e.stopImmediatePropagation();
+		}
+
+	} );
+
+	//valueConverter is used convert a string to a typed value
+	//this is ued in viewHandlers
+	extend( valueConverters, {
+
+		toNumber: function ( value ) {
+			return +value;
+		},
+
+		toDate: function ( value ) {
+			return new Date( value );
+		},
+
+		toString: function ( value ) {
+			return (value === null || value === undefined) ? "" : "" + value;
+		}
+	} );
+
+	viaBindingSet.simpleList = "@mh:.,init|afterUpdate,*template;" +
+	                           ".,afterCreate.child,*pushViewItem;" +
+	                           ".,afterUpdate.child,*updateViewItem;" +
+	                           ".,afterDel.child,*removeViewItem,_";
+
+	specialParsers.lookup = function( view, binding, handlers, specialOptions ) {
+		var rLookupOptions = /^(.+?),(.*)$/;
+		var match = rLookupOptions.exec( specialOptions );
+		var path = binding.path;
+
+		handlers.mh.push(
+			{
+				path: match[1],
+				modelEvents: "init",
+				view: view,
+				modelHandler: "*dropdown",
+				options: match[2]
+			}
+		);
+
+		if ( path ) {
+
+			handlers.mh.push(
+				{
+					path: binding.path,
+					modelEvents: "afterUpdate",
+					view: view,
+					modelHandler: "*val"
+				}
+			);
+
+			handlers.vh.push( {
+				path:binding.path,
+				viewEvents: "change",
+				view: view,
+				viewHandler: "$val"
+			} );
+		}
+	};
+
+	via.classMatchers.textBox = function ( view ) {
+		return $( view ).is( ":text" );
+	};
+
+	extend( viaBindingSet, {
+
+		textBox: "@mh:.,init|after*,*val" +
+		         "@vh:.,keyup,$val",
+		//simple label
+		//text: "@mh:.,init|after*,$text",
+
+		//rich label
+		label: "@mh:.,init|after*,$html"
+	} );
+
 
 
 

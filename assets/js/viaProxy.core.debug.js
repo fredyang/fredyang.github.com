@@ -1,13 +1,13 @@
 /*!
- * viaProxy 0.1
- * http://semanticsworks.com/p/viaproxy.html
+ * viaProxy.js JavaScript Library 0.2pre
+ * http://semanticsworks.com
  *
  * Copyright 2011, Fred Yang
  * Dual licensed under the MIT or GPL Version 2 licenses.
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Tue Nov 29 00:56:13 2011 -0500
+ * Date: Wed Dec 14 01:37:31 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -45,6 +45,25 @@
 		//to be override in 03-modelHandler
 		raiseEvent;
 
+	//#debug
+	//if you are using debug version of the library
+	//you can use debugging facilities provided here
+	//they are also used in unit test to test some internal variable which is
+	//not exposed in production version
+	//In debug version, you can turn on logging by setting via.debug.enableLog = true
+	//and turn on debugger by setting via.debug.enableDebugger = true
+	//
+	//In production version, there is no logging or debugger facilities
+	via.debug = {};
+	via.debug.enableLog = true;
+	via.debug.enableDebugger = false;
+
+	window.log = window.log || function() {
+		if ( via.debug.enableLog && this.console ) {
+			console.log( Array.prototype.slice.call( arguments ) );
+		}
+	};
+	//#end_debug
 
 
 	function Proxy( context ) {
@@ -82,6 +101,22 @@
 		return this;
 	};
 
+	arrayPrototype.sortObject = arrayPrototype.sortObject || function ( by, asc ) {
+		if ( by ) {
+			this.sort( function ( a, b ) {
+				var av = a[by];
+				var bv = b[by];
+				if ( av == bv ) {
+					return 0;
+				}
+				return  asc ? (av > bv) ? 1 : -1 :
+					(av > bv) ? -1 : 1;
+			} );
+		} else {
+			asc ? this.sort() : this.sort().reverse();
+		}
+	};
+
 	var stringPrototype = String.prototype;
 
 	stringPrototype.beginsWith = stringPrototype.beginsWith || function ( text ) {
@@ -114,7 +149,7 @@
 
 	extend( proxyPrototype, {
 
-		version: "0.1",
+		version: "0.2pre",
 
 		constructor: Proxy,
 
@@ -368,6 +403,13 @@
 			return this.create( this.get().length, item );
 		},
 
+		pushRange: function ( items ) {
+			for ( var i = 0; i < items.length; i++ ) {
+				this.push( items[i] );
+			}
+			return this;
+		},
+
 		pushUnique: function ( item ) {
 			return !this.contains( item ) ?
 				this.push( item ) :
@@ -423,6 +465,10 @@
 
 		count: function () {
 			return this.get().length;
+		},
+
+		sort: function ( by, asc ) {
+			return via.raiseEvent( this.context, this.context, "init", this.get().sortObject( by, asc ) );
 		}
 	} );
 
@@ -588,6 +634,7 @@
 	}
 
 	function removePath( contextPath, index ) {
+		log( "deleting children of " + contextPath + "." + index );
 		rootProxy.del( contextPath + "." + index );
 	}
 
@@ -840,6 +887,10 @@
 	//execute the true model handler
 	//this function does not return anything, the result is carried in side in modelEvent
 	function invokeModelHandler( view, modelHandler, modelEvent ) {
+		//#debug
+		var value = modelEvent.targetValue( true );
+		log( "mh", modelEvent.eventType, via.logicalPath( modelEvent.target ), modelHandler, (view === dummyView ? "dummyView" : view), isFunction( value ) ? "function call" : value, modelEvent.options );
+		//#end_debug
 
 		if ( view === dummyView ) {
 			view = null;
@@ -991,13 +1042,13 @@
 	//		proposed: "", //available in beforeUpdate beforeAdd
 	//		removed: "" //available in afterUpdate or afterDel,
 	//	};
-	function ModelEvent( path, target, eventType, proposed, removed ) {
+	function ModelEvent( currentPath, targetPath, eventType, proposed, removed ) {
 
-		if ( isObject( path ) ) {
-			extend( this, path );
+		if ( isObject( currentPath ) ) {
+			extend( this, currentPath );
 		} else {
-			this.path = path;
-			this.target = target;
+			this.path = currentPath;
+			this.target = targetPath;
 			this.eventType = eventType;
 			!isUndefined( proposed ) && (this.proposed = proposed);
 			!isUndefined( removed ) && (this.removed = removed);
@@ -1063,7 +1114,7 @@
 		}
 	};
 
-	function buildModelHandlerOptions( modelHandler, options ) {
+	function buildModelHandlerOptions(view, modelHandler, options ) {
 
 		if ( isString( modelHandler ) && modelHandler.beginsWith( "*" ) ) {
 
@@ -1073,7 +1124,7 @@
 
 		if ( isFunction( modelHandler.buildOptions ) ) {
 
-			options = modelHandler.buildOptions( options );
+			options = modelHandler.buildOptions.call(view, options );
 		}
 		return options;
 	}
@@ -1127,7 +1178,7 @@
 
 			views.each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				markAsView( this );
 				modelHandlerData[path].push( {
@@ -1236,7 +1287,7 @@
 
 			$( views ).each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				//"this" refers to a view
 				invokeModelHandler( this, modelHandler, new ModelEvent( {
@@ -1282,6 +1333,41 @@
 		return this;
 	};
 
+	//#debug
+	via.debug.enableDebugger = false;
+
+	via.commonModelHandlers.log = function ( modelEvent ) {
+
+		var value = modelEvent.targetValue( true );
+		log( modelEvent.eventType.replace( ".child", "" ), via.logicalPath( modelEvent.target ), isFunction( value ) ? "function call" : value );
+
+		var enableDebugger = via.debug.enableDebugger;
+		if ( isFunction( enableDebugger ) ) {
+			enableDebugger = enableDebugger();
+		}
+		if ( enableDebugger ) {
+			debugger;
+		}
+	};
+
+	var logger = {};
+	//add handler to the root object, so that all successful CRUD will
+	//trigger this handler, the handler provide some debugging facilities
+	//via.addModelHandler( "", "after", "*log" );
+	via.debug.enableRootHandler = function ( eventType ) {
+		via.removeModelHandler( logger );
+		eventType = eventType || "*";
+		via.addModelHandler( "", eventType, logger, "*log" );
+	};
+
+	via.debug.disableRootHandler = function () {
+		via.removeModelHandler( logger );
+	}
+
+	via.debug.shouldUpdateView = shouldUpdateView;
+	via.debug.dummyView = dummyView;
+	via.debug.isView = isView;
+	//#end_debug
 
 /* depends: proxy.js, modelEvent.js, modelHandler.js */
 /*depends */
@@ -1548,6 +1634,7 @@
 			viewEvent = new ViewEvent( eventData.path, options, e, triggerData ),
 			viewHandler = eventData.viewHandler;
 
+		log( "vh", viewEvent.e.type, via.logicalPath( viewEvent.path ), eventData.originalHandler, eventData.options );
 
 		if ( isFunction( viewHandler ) ) {
 
@@ -1642,27 +1729,27 @@
 		_cleanData( elems );
 	};
 
-	via.forwardEvent = function ( oldEvent, newEvent, conditionFn ) {
+	via.forwardEvent = function ( fromEvent, toEvent, whenFn ) {
 
 		var handler = function ( e ) {
-			if ( conditionFn( e ) ) {
+			if ( whenFn( e ) ) {
 				$( e.target ).trigger( extend( {}, e, {
-					type: newEvent,
+					type: toEvent,
 					currentTarget: e.target
 				} ) );
 			}
 		};
 
-		if ( $.event.special[newEvent] ) {
-			throw "event '" + newEvent + "' has been defined";
+		if ( $.event.special[toEvent] ) {
+			throw "event '" + toEvent + "' has been defined";
 		}
 
-		$.event.special[newEvent] = {
+		$.event.special[toEvent] = {
 			setup: function () {
-				$( this ).bind( oldEvent, handler );
+				$( this ).bind( fromEvent, handler );
 			},
 			teardown: function () {
-				$( this ).unbind( oldEvent, handler );
+				$( this ).unbind( fromEvent, handler );
 			}
 		};
 

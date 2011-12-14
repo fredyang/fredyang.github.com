@@ -7,7 +7,7 @@
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Tue Dec 13 01:05:28 2011 -0500
+ * Date: Wed Dec 14 01:37:31 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -2138,6 +2138,11 @@
 		}
 	};
 
+	//support function ( templateId, dataSource, callback, engineName )
+	//function ( templateId, dataSource, options, engineName )
+	//callback is a function ($content) {
+	// //this refers to the view
+	//}
 	via.renderTemplate = function ( templateId, dataSource, options, engineName ) {
 		engineName = engineName || options && options.engine || defaultOptions.engine;
 
@@ -2145,7 +2150,14 @@
 			throw "there is not default engine registered";
 		}
 
-		var engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
+		var view = this,
+			callback = options && ($.isFunction( options ) ? options : options.callback),
+			engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
+
+		options = options || {};
+		options.get = function ( fullPath ) {
+			return rootProxy.get( fullPath );
+		};
 
 		if ( !engine ) {
 			throw "engine '" + engine + "' can not be found.";
@@ -2156,9 +2168,7 @@
 		if ( engine.isTemplateCompiled( templateId ) ) {
 
 			$content = $( engine.renderTemplate( templateId, dataSource, options ) );
-			if ( options && options.callback ) {
-				options.callback.call(options.view, $content );
-			}
+			callback && callback.call( view, $content );
 			return $content;
 
 		} else if ( typeof matrix !== "undefined" ) {
@@ -2170,14 +2180,18 @@
 			} );
 
 			return defer.promise().done( function () {
-				if ( options && options.callback ) {
-					options.callback.call(options.view, $content );
-				}
+				callback && callback.call( view, $content );
 			} );
 		}
 
 		throw "can not locate template for '" + templateId + "'";
 
+	};
+
+	$.fn.renderTemplate = function ( templateId, dataSource, options, engineName ) {
+		return this.each( function () {
+			via.renderTemplate.call( this, templateId, dataSource, options, engineName );
+		} );
 	};
 
 	via.compileTemplate = function ( templateId, source, engineName ) {
@@ -2220,12 +2234,12 @@
 		if ( dataSource && ((isArray( dataSource ) && dataSource.length) || !isArray( dataSource ) ) ) {
 
 			var options = modelEvent.options;
-			options.callback = function ($content) {
-				$(this).html($content);
+			options.callback = function ( $content ) {
+				$( this ).html( $content );
 				$content.view();
 			};
 
-			via.renderTemplate( options.templateId, dataSource, options );
+			via.renderTemplate.call( this, options.templateId, dataSource, options );
 
 		} else {
 			$( this ).empty();
@@ -2246,12 +2260,8 @@
 		if ( isString( options ) ) {
 			options = options.split( "," );
 			return {
-				templateId: $.trim(options[0]),
-				engineName: options[1],
-				get: function ( fullPath ) {
-					return rootProxy.get( fullPath );
-				},
-				view: this
+				templateId: $.trim( options[0] ),
+				engineName: options[1]
 			};
 		}
 		return options;
@@ -2379,11 +2389,8 @@
 		//add a new item to to list view
 		pushViewItem: function ( modelEvent ) {
 
-			via.renderTemplate( modelEvent.options, modelEvent.targetValue(), {
-				callback: function ( $content ) {
-					$content.appendTo( this ).view();
-				},
-				view: this
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(), function ( $content ) {
+				$content.appendTo( this ).view();
 			} );
 
 		},
@@ -2395,13 +2402,11 @@
 
 		//update an item in the list view
 		updateViewItem: function ( modelEvent ) {
-			via.renderTemplate( modelEvent.options, modelEvent.targetValue(), {
-				callback: function ( $content ) {
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(),
+				function ( $content ) {
 					$( this ).children().eq( modelEvent.targetIndex() ).replaceWith( $content );
 					$content.view();
-				},
-				view: this
-			} );
+				} );
 		},
 
 		//show a view if model is not empty
@@ -2506,7 +2511,7 @@
 		}
 	} );
 
-	viaBindingSet.simpleList = "@mh:.,init,*template;" +
+	viaBindingSet.simpleList = "@mh:.,init|afterUpdate,*template;" +
 	                           ".,afterCreate.child,*pushViewItem;" +
 	                           ".,afterUpdate.child,*updateViewItem;" +
 	                           ".,afterDel.child,*removeViewItem,_";
@@ -3439,14 +3444,10 @@
 			if ( modelEvent.targetValue() === 1 ) {
 				var dataSource = modelEvent.targetProxy().mainProxy().get( "*edit.item" );
 
-				via.renderTemplate( modelEvent.options, dataSource,
-					{
-						callback: function ( $content ) {
-							$( this ).html( $content );
-							$content.view();
-						},
-						view:this
-					} );
+				$( this ).renderTemplate( modelEvent.options, dataSource, function ( $content ) {
+					$( this ).html( $content );
+					$content.view();
+				} );
 
 			} else {
 				$( this ).empty();
@@ -3461,13 +3462,11 @@
 
 			//change back to display
 			if ( selectedIndex !== -1 ) {
-				via.renderTemplate( modelEvent.options, mainProxy.get( "*edit.item" ),
-					{
-						callback: function ( $content ) {
-							$( this ).children().eq( selectedIndex ).replaceWith( $content );
-							$content.view();
-						},
-						view: this
+
+				$( this ).renderTemplate( modelEvent.options, mainProxy.get( "*edit.item" ),
+					function ( $content ) {
+						$( this ).children().eq( selectedIndex ).replaceWith( $content );
+						$content.view();
 					}
 				);
 			}
@@ -3480,13 +3479,17 @@
 
 			if ( selectedIndex === -1 ) {
 				var mainProxy = modelEvent.targetProxy().mainProxy();
-				via.renderTemplate( modelEvent.options, (mainProxy.get( "*queryResult" ) || mainProxy.get())[modelEvent.removed],
-					{
-						callback:function ( $content ) {
-							$( this ).children().eq( modelEvent.removed ).replaceWith( $content );
-							$content.view();
-						},
-						view: this
+				$( this ).renderTemplate(
+					//templateId
+					modelEvent.options,
+
+					//dataSource
+					(mainProxy.get( "*queryResult" ) || mainProxy.get())[modelEvent.removed],
+
+					//callback
+					function ( $content ) {
+						$( this ).children().eq( modelEvent.removed ).replaceWith( $content );
+						$content.view();
 					}
 				);
 			}
@@ -3497,8 +3500,8 @@
 
 	specialParsers.editableList = function ( view, binding, handlers, specialOptions ) {
 		var options = specialOptions.split( "," );
-		var templateRead = $.trim(options[0]);
-		var templateEdit = $.trim(options[1]);
+		var templateRead = $.trim( options[0] );
+		var templateEdit = $.trim( options[1] );
 		var engineName = options[2];
 		var path = binding.path;
 

@@ -1,13 +1,13 @@
 /*!
- * viaProxy 0.1
- * http://semanticsworks.com/p/viaproxy.html
+ * viaProxy.js JavaScript Library 0.2pre
+ * http://semanticsworks.com
  *
  * Copyright 2011, Fred Yang
  * Dual licensed under the MIT or GPL Version 2 licenses.
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Tue Nov 29 00:56:13 2011 -0500
+ * Date: Wed Dec 14 01:37:31 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -101,6 +101,22 @@
 		return this;
 	};
 
+	arrayPrototype.sortObject = arrayPrototype.sortObject || function ( by, asc ) {
+		if ( by ) {
+			this.sort( function ( a, b ) {
+				var av = a[by];
+				var bv = b[by];
+				if ( av == bv ) {
+					return 0;
+				}
+				return  asc ? (av > bv) ? 1 : -1 :
+					(av > bv) ? -1 : 1;
+			} );
+		} else {
+			asc ? this.sort() : this.sort().reverse();
+		}
+	};
+
 	var stringPrototype = String.prototype;
 
 	stringPrototype.beginsWith = stringPrototype.beginsWith || function ( text ) {
@@ -133,7 +149,7 @@
 
 	extend( proxyPrototype, {
 
-		version: "0.1",
+		version: "0.2pre",
 
 		constructor: Proxy,
 
@@ -387,6 +403,13 @@
 			return this.create( this.get().length, item );
 		},
 
+		pushRange: function ( items ) {
+			for ( var i = 0; i < items.length; i++ ) {
+				this.push( items[i] );
+			}
+			return this;
+		},
+
 		pushUnique: function ( item ) {
 			return !this.contains( item ) ?
 				this.push( item ) :
@@ -442,6 +465,10 @@
 
 		count: function () {
 			return this.get().length;
+		},
+
+		sort: function ( by, asc ) {
+			return via.raiseEvent( this.context, this.context, "init", this.get().sortObject( by, asc ) );
 		}
 	} );
 
@@ -1015,13 +1042,13 @@
 	//		proposed: "", //available in beforeUpdate beforeAdd
 	//		removed: "" //available in afterUpdate or afterDel,
 	//	};
-	function ModelEvent( path, target, eventType, proposed, removed ) {
+	function ModelEvent( currentPath, targetPath, eventType, proposed, removed ) {
 
-		if ( isObject( path ) ) {
-			extend( this, path );
+		if ( isObject( currentPath ) ) {
+			extend( this, currentPath );
 		} else {
-			this.path = path;
-			this.target = target;
+			this.path = currentPath;
+			this.target = targetPath;
 			this.eventType = eventType;
 			!isUndefined( proposed ) && (this.proposed = proposed);
 			!isUndefined( removed ) && (this.removed = removed);
@@ -1087,7 +1114,7 @@
 		}
 	};
 
-	function buildModelHandlerOptions( modelHandler, options ) {
+	function buildModelHandlerOptions(view, modelHandler, options ) {
 
 		if ( isString( modelHandler ) && modelHandler.beginsWith( "*" ) ) {
 
@@ -1097,7 +1124,7 @@
 
 		if ( isFunction( modelHandler.buildOptions ) ) {
 
-			options = modelHandler.buildOptions( options );
+			options = modelHandler.buildOptions.call(view, options );
 		}
 		return options;
 	}
@@ -1151,7 +1178,7 @@
 
 			views.each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				markAsView( this );
 				modelHandlerData[path].push( {
@@ -1260,7 +1287,7 @@
 
 			$( views ).each( function () {
 
-				options = buildModelHandlerOptions( modelHandler, options );
+				options = buildModelHandlerOptions(this, modelHandler, options );
 
 				//"this" refers to a view
 				invokeModelHandler( this, modelHandler, new ModelEvent( {
@@ -1702,27 +1729,27 @@
 		_cleanData( elems );
 	};
 
-	via.forwardEvent = function ( oldEvent, newEvent, conditionFn ) {
+	via.forwardEvent = function ( fromEvent, toEvent, whenFn ) {
 
 		var handler = function ( e ) {
-			if ( conditionFn( e ) ) {
+			if ( whenFn( e ) ) {
 				$( e.target ).trigger( extend( {}, e, {
-					type: newEvent,
+					type: toEvent,
 					currentTarget: e.target
 				} ) );
 			}
 		};
 
-		if ( $.event.special[newEvent] ) {
-			throw "event '" + newEvent + "' has been defined";
+		if ( $.event.special[toEvent] ) {
+			throw "event '" + toEvent + "' has been defined";
 		}
 
-		$.event.special[newEvent] = {
+		$.event.special[toEvent] = {
 			setup: function () {
-				$( this ).bind( oldEvent, handler );
+				$( this ).bind( fromEvent, handler );
 			},
 			teardown: function () {
-				$( this ).unbind( oldEvent, handler );
+				$( this ).unbind( fromEvent, handler );
 			}
 		};
 
@@ -2130,7 +2157,7 @@
 		}
 	} );
 
-	//@viewEvent:action.edit,
+	//@viaEvent:action.edit,
 	specialParsers.viaEvent = function ( view, binding, handlers, specialOptions ) {
 
 		if ( !binding.viewEvents ) {
@@ -2177,6 +2204,11 @@
 		}
 	};
 
+	//support function ( templateId, dataSource, callback, engineName )
+	//function ( templateId, dataSource, options, engineName )
+	//callback is a function ($content) {
+	// //this refers to the view
+	//}
 	via.renderTemplate = function ( templateId, dataSource, options, engineName ) {
 		engineName = engineName || options && options.engine || defaultOptions.engine;
 
@@ -2184,17 +2216,48 @@
 			throw "there is not default engine registered";
 		}
 
-		var engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
+		var view = this,
+			callback = options && ($.isFunction( options ) ? options : options.callback),
+			engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
+
+		options = options || {};
+		options.get = function ( fullPath ) {
+			return rootProxy.get( fullPath );
+		};
 
 		if ( !engine ) {
 			throw "engine '" + engine + "' can not be found.";
 		}
 
-		var $content = $( engine.renderTemplate( templateId, dataSource, options ) );
-		if ( options && options.callback ) {
-			options.callback( $content );
+		var $content;
+
+		if ( engine.isTemplateCompiled( templateId ) ) {
+
+			$content = $( engine.renderTemplate( templateId, dataSource, options ) );
+			callback && callback.call( view, $content );
+			return $content;
+
+		} else if ( typeof matrix !== "undefined" ) {
+
+			var defer = $.Deferred();
+			matrix( matrix.resourceName( templateId ) + ".template" ).done( function () {
+				$content = $( engine.renderTemplate( templateId, dataSource, options ) );
+				defer.resolve( $content );
+			} );
+
+			return defer.promise().done( function () {
+				callback && callback.call( view, $content );
+			} );
 		}
-		return $content;
+
+		throw "can not locate template for '" + templateId + "'";
+
+	};
+
+	$.fn.renderTemplate = function ( templateId, dataSource, options, engineName ) {
+		return this.each( function () {
+			via.renderTemplate.call( this, templateId, dataSource, options, engineName );
+		} );
 	};
 
 	via.compileTemplate = function ( templateId, source, engineName ) {
@@ -2214,20 +2277,36 @@
 
 	};
 
+	via.isTemplateComplied = function ( templateId, engineName ) {
+		engineName = engineName || defaultOptions.engine;
+
+		if ( !engineName ) {
+			throw "there is not default engine registered";
+		}
+
+		var engine = templateEngines[engineName];
+
+		if ( !engine ) {
+			throw "engine '" + engine + "' can not be found.";
+		}
+		return engine.isTemplateComplied( templateId );
+	};
+
 	function template( modelEvent ) {
 		var dataSource = modelEvent.currentValue();
-		var options = modelEvent.options;
-		options.get = function (fullPath) {
-			return rootProxy.get(fullPath);
-		};
 
 		//dataSource can be an non-empty array
 		//or it can be an non-empty non-array
 		if ( dataSource && ((isArray( dataSource ) && dataSource.length) || !isArray( dataSource ) ) ) {
 
-			var content = via.renderTemplate( options.templateId, dataSource, options );
-			$( this ).html( content );
-			content.view();
+			var options = modelEvent.options;
+			options.callback = function ( $content ) {
+				$( this ).html( $content );
+				$content.view();
+			};
+
+			via.renderTemplate.call( this, options.templateId, dataSource, options );
+
 		} else {
 			$( this ).empty();
 		}
@@ -2247,7 +2326,7 @@
 		if ( isString( options ) ) {
 			options = options.split( "," );
 			return {
-				templateId: options[0],
+				templateId: $.trim( options[0] ),
 				engineName: options[1]
 			};
 		}
@@ -2260,6 +2339,300 @@
 	} );
 
 	var templateEngines = via.templateEngines = {};
+
+//
+
+
+
+	if ( $.tmpl ) {
+
+		defaultOptions.engine = "tmpl";
+
+		templateEngines.tmpl = {
+
+			renderTemplate: function ( templateId, dataSource, options ) {
+				return templateId.beginsWith( "#" ) ?
+					$( templateId ).tmpl( dataSource, options ) :
+					$.tmpl( templateId, dataSource, options );
+			},
+
+			compileTemplate: function ( templateId, source ) {
+				$.template( templateId, source );
+			},
+
+			isTemplateCompiled: function ( templateId ) {
+				return templateId.beginsWith( "#" ) ? !! $( templateId ).length :
+					!!$.template[templateId];
+			}
+		};
+
+		//use "else if" instead of "if", because both jsrender and tmpl use $.template
+		//otherwise they can run side by side
+	} else if ( $.render ) {
+
+		defaultOptions.engine = "jsrender";
+
+		templateEngines.jsrender = {
+
+			renderTemplate: function ( templateId, dataSource, options ) {
+
+				return templateId.beginsWith( "#" ) ?
+
+					$( templateId ).render( dataSource, options ) :
+
+					$.render( dataSource, templateId, options );
+			},
+
+			compileTemplate: function ( templateId, source ) {
+				$.template( templateId, source );
+			},
+
+			isTemplateCompiled: function ( templateId ) {
+				return templateId.beginsWith( "#" ) ? !! $( templateId ).length :
+					!!$.views.templates[templateId];
+			}
+		};
+	}
+
+
+
+//
+
+
+	if ( templateEngines.tmpl ) {
+
+		via.compileTemplate( "ddl_tmpl", "<option value='${this.value($data)}'>${this.name($data)}</option>" );
+	}
+
+	if ( templateEngines.jsrender ) {
+
+		via.compileTemplate( "ddl_jsrender", "<option value='{{=$ctx.value($data)}}'>{{=$ctx.name($data)}}</option>", "jsrender" );
+
+	}
+
+	extend( commonModelHandlers, {
+
+		dropdown:extend(
+
+			function ( modelEvent ) {
+				//	function template( modelEvent ) {
+				commonModelHandlers.template.call( this, modelEvent );
+			},
+			{
+				buildOptions: function ( options ) {
+
+					//name,value,engine
+					var parts = (options || "").split( "," );
+
+					options = parts.length === 1 ?
+						//only engine name is specified
+					{
+						name: function ( item ) {
+							return item.toString();
+						},
+						value: function ( item ) {
+							return item.toString();
+						},
+						engine: options
+					} :
+						//all name, value, engine name is specified
+					{
+						name : function ( item ) {
+							return item[parts[0]];
+						},
+						value : function ( item ) {
+							return item[parts[1]];
+						},
+						engine: parts[2]
+					};
+
+					options.templateId = "ddl_" + (options.engine || defaultOptions.engine);
+					return options;
+				}
+			}
+		),
+
+		//add a new item to to list view
+		pushViewItem: function ( modelEvent ) {
+
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(), function ( $content ) {
+				$content.appendTo( this ).view();
+			} );
+
+		},
+
+		//remove an item from list view
+		removeViewItem: function ( modelEvent ) {
+			$( this ).children().eq( +modelEvent.targetIndex() ).remove();
+		},
+
+		//update an item in the list view
+		updateViewItem: function ( modelEvent ) {
+			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(),
+				function ( $content ) {
+					$( this ).children().eq( modelEvent.targetIndex() ).replaceWith( $content );
+					$content.view();
+				} );
+		},
+
+		//show a view if model is not empty
+		showIfTruthy : function ( modelEvent ) {
+			$( this )[ modelEvent.isModelEmpty() ? "hide" : "show"]();
+		},
+
+		//show a view if model is falsy
+		showIfFalsy: function ( modelEvent ) {
+
+			$( this )[ modelEvent.isModelEmpty() ? "show" : "hide"]();
+		},
+
+		enableIfTruthy: function ( modelEvent ) {
+			$( this ).attr( "disabled", modelEvent.isModelEmpty() );
+		},
+
+		enableIfFalsy: function ( modelEvent ) {
+			$( this ).attr( "disabled", !modelEvent.isModelEmpty() );
+		},
+
+		//update text box only when the new value is different from the value of the text box
+		//this is prevent circular update
+		val : function ( modelEvent ) {
+			var value = modelEvent.currentValue();
+			if ( value !== $( this ).val() ) {
+				$( this ).val( value );
+			}
+		}
+	} );
+
+	extend( commonViewHandlers, {
+
+		//return a static value (from options) to be used to update model
+		value : function ( viewEvent ) {
+			return isFunction( viewEvent.options ) ?
+				viewEvent.options() :
+				viewEvent.options;
+		},
+
+		//return a eval value (from options) to be used to update model
+		evalOptions: function ( viewEvent ) {
+			return eval( viewEvent.options );
+		},
+
+		stringOptions: function ( viewEvent ) {
+			return viewEvent.options;
+		},
+
+		numberOptions: function( viewEvent ) {
+			return +viewEvent.options;
+		},
+
+		trueValue: function () {
+			return true;
+		},
+
+		falseValue: function () {
+			return false;
+		},
+		//return opposite value of the current model to be used to update model
+		toggle: function ( viewEvent ) {
+			return !viewEvent.targetValue();
+		},
+
+		trueIfCheck: function () {
+			return this.checked;
+		},
+
+		trueIfUncheck: function () {
+			return !this.checked;
+		},
+
+		returnFalse: function ( viewEvent ) {
+			viewEvent.returnFalse();
+		},
+
+		preventDefault: function ( viewEvent ) {
+			viewEvent.e.preventDefault();
+		},
+
+		stopBubble : function ( viewEvent ) {
+			viewEvent.e.stopImmediatePropagation();
+		}
+
+	} );
+
+	//valueConverter is used convert a string to a typed value
+	//this is ued in viewHandlers
+	extend( valueConverters, {
+
+		toNumber: function ( value ) {
+			return +value;
+		},
+
+		toDate: function ( value ) {
+			return new Date( value );
+		},
+
+		toString: function ( value ) {
+			return (value === null || value === undefined) ? "" : "" + value;
+		}
+	} );
+
+	viaBindingSet.simpleList = "@mh:.,init|afterUpdate,*template;" +
+	                           ".,afterCreate.child,*pushViewItem;" +
+	                           ".,afterUpdate.child,*updateViewItem;" +
+	                           ".,afterDel.child,*removeViewItem,_";
+
+	specialParsers.lookup = function( view, binding, handlers, specialOptions ) {
+		var rLookupOptions = /^(.+?),(.*)$/;
+		var match = rLookupOptions.exec( specialOptions );
+		var path = binding.path;
+
+		handlers.mh.push(
+			{
+				path: match[1],
+				modelEvents: "init",
+				view: view,
+				modelHandler: "*dropdown",
+				options: match[2]
+			}
+		);
+
+		if ( path ) {
+
+			handlers.mh.push(
+				{
+					path: binding.path,
+					modelEvents: "afterUpdate",
+					view: view,
+					modelHandler: "*val"
+				}
+			);
+
+			handlers.vh.push( {
+				path:binding.path,
+				viewEvents: "change",
+				view: view,
+				viewHandler: "$val"
+			} );
+		}
+	};
+
+	via.classMatchers.textBox = function ( view ) {
+		return $( view ).is( ":text" );
+	};
+
+	extend( viaBindingSet, {
+
+		textBox: "@mh:.,init|after*,*val" +
+		         "@vh:.,keyup,$val",
+		//simple label
+		//text: "@mh:.,init|after*,$text",
+
+		//rich label
+		label: "@mh:.,init|after*,$html"
+	} );
+
+
 
 
 })( jQuery, window );
