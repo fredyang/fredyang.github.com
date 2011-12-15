@@ -7,7 +7,7 @@
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Wed Dec 14 01:37:31 2011 -0500
+ * Date: Thu Dec 15 00:59:14 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -102,6 +102,7 @@
 	};
 
 	arrayPrototype.sortObject = arrayPrototype.sortObject || function ( by, asc ) {
+		asc = isUndefined( asc ) ? true : false;
 		if ( by ) {
 			this.sort( function ( a, b ) {
 				var av = a[by];

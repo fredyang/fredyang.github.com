@@ -7,7 +7,7 @@
  * http://www.opensource.org/licenses/mit-license
  * http://www.opensource.org/licenses/gpl-2.0
  *
- * Date: Wed Dec 14 01:37:31 2011 -0500
+ * Date: Thu Dec 15 00:59:14 2011 -0500
  */
  window.jQuery && window.via || (function( $, window, undefined ) {
 
@@ -83,6 +83,7 @@
 	};
 
 	arrayPrototype.sortObject = arrayPrototype.sortObject || function ( by, asc ) {
+		asc = isUndefined( asc ) ? true : false;
 		if ( by ) {
 			this.sort( function ( a, b ) {
 				var av = a[by];
@@ -1893,24 +1894,29 @@
 		return "";
 	}
 
-	function mergePath( context, index ) {
+	var mergePath = via.mergePath = function ( context, index ) {
 
 		if ( !index || index == "." ) {
 
 			return context;
 
+			//if index is like ..xyz or .*xyz
 		} else if ( rUseBindingContextAsContext.test( index ) ) {
 
 			//use binding's context as context
 			//.. or .*
 			return  index.replace( rUseBindingContextAsContext, via.contextOfPath( context ) + "$1" );
 
+			//if index is like .ab or *ab
 		} else if ( rUseBindingPathAsContext.test( index ) ) {
 
 			var match = /^(.+)\*/.exec( context );
 
+			//if context is is like a.b.c* and index is like *d
 			if ( match && match[1] && index.beginsWith( "*" ) ) {
+				//return a.b.c*d
 				return match[1] + index;
+
 			} else {
 				//return context + index;
 				return index.replace( rUseBindingPathAsContext, context + "$&" );
@@ -1918,8 +1924,10 @@
 
 		}
 		return index;
-	}
+	};
 
+
+	
 	//merge the handlers to handlers object
 	function buildHandlerData( view, binding, handlers ) {
 		mergeHandlersByType( "mh", view, binding, handlers );
@@ -2143,14 +2151,14 @@
 	//callback is a function ($content) {
 	// //this refers to the view
 	//}
-	via.renderTemplate = function ( templateId, dataSource, options, engineName ) {
+	function _renderTemplate( view, templateId, dataSource, options, engineName ) {
 		engineName = engineName || options && options.engine || defaultOptions.engine;
 
 		if ( !engineName ) {
 			throw "there is not default engine registered";
 		}
 
-		var view = this,
+		var $content,
 			callback = options && ($.isFunction( options ) ? options : options.callback),
 			engine = templateEngines[engineName || options && options.engine || defaultOptions.engine];
 
@@ -2162,8 +2170,6 @@
 		if ( !engine ) {
 			throw "engine '" + engine + "' can not be found.";
 		}
-
-		var $content;
 
 		if ( engine.isTemplateCompiled( templateId ) ) {
 
@@ -2185,13 +2191,44 @@
 		}
 
 		throw "can not locate template for '" + templateId + "'";
+	}
 
-	};
+	//here we use postAction like html, append, replaceWith, 
+	//support function ( postAction, templateId, dataSource, callback, engineName )
+	//and  function ( postAction, templateId, dataSource, options, engineName )
+	$.fn.renderTemplate = function ( postAction, templateId, dataSource, options, engineName ) {
 
-	$.fn.renderTemplate = function ( templateId, dataSource, options, engineName ) {
 		return this.each( function () {
-			via.renderTemplate.call( this, templateId, dataSource, options, engineName );
+
+			var newOptions,
+				view = this,
+				externalCallback = options && ($.isFunction( options ) ? options : options.callback);
+
+			function mergedCallback( $content ) {
+
+				if ( postAction ) {
+					$( view )[postAction]( $content );
+					$content.view();
+				}
+
+				externalCallback && externalCallback.call( view, $content );
+			}
+
+			if ( typeof options === "object" ) {
+
+				options.callback = mergedCallback;
+
+				newOptions = options;
+
+			} else {
+
+				newOptions = mergedCallback;
+			}
+
+			_renderTemplate( view, templateId, dataSource, newOptions, engineName );
+
 		} );
+
 	};
 
 	via.compileTemplate = function ( templateId, source, engineName ) {
@@ -2211,20 +2248,10 @@
 
 	};
 
-	via.isTemplateComplied = function ( templateId, engineName ) {
-		engineName = engineName || defaultOptions.engine;
-
-		if ( !engineName ) {
-			throw "there is not default engine registered";
-		}
-
-		var engine = templateEngines[engineName];
-
-		if ( !engine ) {
-			throw "engine '" + engine + "' can not be found.";
-		}
-		return engine.isTemplateComplied( templateId );
-	};
+	function wrapContentIntoView( $content ) {
+		$( this ).html( $content );
+		$content.view();
+	}
 
 	function template( modelEvent ) {
 		var dataSource = modelEvent.currentValue();
@@ -2234,12 +2261,18 @@
 		if ( dataSource && ((isArray( dataSource ) && dataSource.length) || !isArray( dataSource ) ) ) {
 
 			var options = modelEvent.options;
-			options.callback = function ( $content ) {
-				$( this ).html( $content );
-				$content.view();
-			};
 
-			via.renderTemplate.call( this, options.templateId, dataSource, options );
+			var userCallback = options.callback;
+			if ( userCallback ) {
+				options.callback = function ( $content ) {
+					wrapContentIntoView.call( this, $content );
+					userCallback.call( this, $content );
+				};
+			} else {
+				options.callback = wrapContentIntoView;
+			}
+
+			_renderTemplate( this, options.templateId, dataSource, options );
 
 		} else {
 			$( this ).empty();
@@ -2389,9 +2422,7 @@
 		//add a new item to to list view
 		pushViewItem: function ( modelEvent ) {
 
-			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(), function ( $content ) {
-				$content.appendTo( this ).view();
-			} );
+			$( this ).renderTemplate( "append", modelEvent.options, modelEvent.targetValue() );
 
 		},
 
@@ -2402,11 +2433,10 @@
 
 		//update an item in the list view
 		updateViewItem: function ( modelEvent ) {
-			$( this ).renderTemplate( modelEvent.options, modelEvent.targetValue(),
-				function ( $content ) {
-					$( this ).children().eq( modelEvent.targetIndex() ).replaceWith( $content );
-					$content.view();
-				} );
+
+			$( this ).children().eq( modelEvent.targetIndex() )
+				.renderTemplate("replaceWith", modelEvent.options, modelEvent.targetValue() );
+			
 		},
 
 		//show a view if model is not empty
@@ -2517,17 +2547,17 @@
 	                           ".,afterDel.child,*removeViewItem,_";
 
 	specialParsers.lookup = function( view, binding, handlers, specialOptions ) {
-		var rLookupOptions = /^(.+?),(.*)$/;
+		var rLookupOptions = /^(.+?)(,(.*))*$/;
 		var match = rLookupOptions.exec( specialOptions );
 		var path = binding.path;
 
 		handlers.mh.push(
 			{
-				path: match[1],
+				path: via.mergePath(binding.path, match[1]),
 				modelEvents: "init",
 				view: view,
 				modelHandler: "*dropdown",
-				options: match[2]
+				options: match[3]
 			}
 		);
 
@@ -3430,6 +3460,13 @@
 			var editProxy = targetProxy.childProxy( "*edit" );
 			var queryItems = targetProxy.get( "*queryResult" ) || targetProxy.get();
 
+			//prevent editing two item at the same time
+			if ( editProxy.get( "mode" ) !== via.editMode.none ) {
+				editProxy.update( "item", null )
+					.update( "mode", via.editMode.none )
+					.update( "selectedIndex", -1 );
+			}
+
 			editProxy
 				.update( "item", $.extend( {}, queryItems[selectedIndex] ) )
 				.update( "selectedIndex", selectedIndex )
@@ -3444,10 +3481,7 @@
 			if ( modelEvent.targetValue() === 1 ) {
 				var dataSource = modelEvent.targetProxy().mainProxy().get( "*edit.item" );
 
-				$( this ).renderTemplate( modelEvent.options, dataSource, function ( $content ) {
-					$( this ).html( $content );
-					$content.view();
-				} );
+				$( this ).renderTemplate( "html", modelEvent.options, dataSource );
 
 			} else {
 				$( this ).empty();
@@ -3463,12 +3497,8 @@
 			//change back to display
 			if ( selectedIndex !== -1 ) {
 
-				$( this ).renderTemplate( modelEvent.options, mainProxy.get( "*edit.item" ),
-					function ( $content ) {
-						$( this ).children().eq( selectedIndex ).replaceWith( $content );
-						$content.view();
-					}
-				);
+				$( this ).children().eq( selectedIndex )
+					.renderTemplate( "replaceWith", modelEvent.options, mainProxy.get( "*edit.item" ) );
 			}
 		},
 
@@ -3479,18 +3509,15 @@
 
 			if ( selectedIndex === -1 ) {
 				var mainProxy = modelEvent.targetProxy().mainProxy();
-				$( this ).renderTemplate(
+				$( this ).children().eq( modelEvent.removed ).renderTemplate(
+
+					"replaceWith",
+
 					//templateId
 					modelEvent.options,
 
 					//dataSource
-					(mainProxy.get( "*queryResult" ) || mainProxy.get())[modelEvent.removed],
-
-					//callback
-					function ( $content ) {
-						$( this ).children().eq( modelEvent.removed ).replaceWith( $content );
-						$content.view();
-					}
+					(mainProxy.get( "*queryResult" ) || mainProxy.get())[modelEvent.removed]
 				);
 			}
 		}
