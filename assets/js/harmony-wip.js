@@ -8,7 +8,7 @@
   * Date: Wed May 29 10:13:33 2013 -0400
   */
 (function( $, window, undefined ) {
-  "use strict";
+	"use strict";
 
 	/*jshint smarttabs:true, evil:true, expr:true, newcap: false, validthis: true */
 	/**
@@ -433,8 +433,8 @@
 				hostObj[accessor.index] = value;
 			}
 
-			trigger( physicalPath, physicalPath, afterCreate, value );
 			traverseModel( physicalPath, value );
+			trigger( physicalPath, physicalPath, afterCreate, value );
 			return this;
 		},
 
@@ -501,11 +501,12 @@
 
 			accessor.hostObj[accessor.index] = value;
 
+			traverseModel( physicalPath, value );
+
 			if (!force) {
 				trigger( physicalPath, physicalPath, afterUpdate, value, originalValue );
 			}
 
-			traverseModel( physicalPath, value );
 			return this;
 		},
 
@@ -1074,7 +1075,13 @@
 
 				return rtn;
 
-			} else if (isArray( seeds )) {
+			} else {
+
+				if (!isArray( seeds )) {
+
+					seeds = slice.call( arguments );
+
+				}
 
 				itemIsObject = seeds.itemIsObject;
 
@@ -1083,12 +1090,11 @@
 
 					rtn.push(
 						itemIsObject || !isArray( seed ) ?
-							new this( seed ) :
+							seeds instanceof this ? this : new this( seed ) :
 							this.apply( null, seed )
 					);
 				}
-			} else {
-				rtn.push( seeds );
+
 			}
 
 			return rtn;
