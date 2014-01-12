@@ -1,11 +1,10 @@
  /*!
-  * Harmony JavaScript Library v0.1pre
+  * Hm.js JavaScript Library v0.1pre
   * © Fred Yang - http://semanticsworks.com
   * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-  *
-  * Date: Wed Feb 13 22:46:55 2013 -0500
+  * Date: Sun Jan 12 13:11:24 2014 -0500
   */
-(function($, window, undefined) {
+(function( $, window, undefined ) {
 	"use strict";
 
 	/*jshint smarttabs:true, evil:true, expr:true, newcap: false, validthis: true */
@@ -13,10 +12,10 @@
 	 * a wrapper over a Node constructor,
 	 * [value] is optional
 	 */
-	var hm = window.hm = function(path, value) {
+	var hm = window.hm = function( path, value ) {
 			return new Node( path, value );
 		},
-		Node = function(path, value) {
+		Node = function( path, value ) {
 			path = path || "";
 			this.path = toPhysicalPath( path, true /* create shadow if necessary */ );
 			if (!isUndefined( value )) {
@@ -30,7 +29,6 @@
 		location = window.location,
 		alert = window.alert,
 		confirm = window.confirm,
-		matrix = window.matrix,
 		hmFn,
 		extend = $.extend,
 		repository = {},
@@ -42,9 +40,9 @@
 	//try to match xxx in string this.get("xxx")
 		rWatchedPath = /this\.(?:get)\s*\(\s*(['"])([\*\.\w\/]+)\1\s*\)/g,
 
-	//key is referencedPath
-	//value is array of referencingPath
-		referenceTable = {},
+	//key is watchedPaths
+	//value is array of watchingPaths
+		watchTable = {},
 		defaultOptions = {},
 		rootNode,
 		shadowRoot = repository[shadowNamespace] = {},
@@ -106,7 +104,7 @@
 	//#end_debug
 
 
-	function augment (prototype, extension) {
+	function augment( prototype, extension ) {
 		for (var key in extension) {
 			if (!prototype[key]) {
 				prototype[key] = extension[key];
@@ -115,7 +113,7 @@
 	}
 
 	augment( arrayPrototype, {
-		indexOf: function(obj, start) {
+		indexOf: function( obj, start ) {
 			for (var i = (start || 0); i < this.length; i++) {
 				if (this[i] == obj) {
 					return i;
@@ -124,11 +122,11 @@
 			return -1;
 		},
 
-		contains: function(item) {
+		contains: function( item ) {
 			return (this.indexOf( item ) !== -1);
 		},
 
-		remove: function(item) {
+		remove: function( item ) {
 			var position = this.indexOf( item );
 			if (position != -1) {
 				this.splice( position, 1 );
@@ -136,19 +134,19 @@
 			return this;
 		},
 
-		removeAt: function(index) {
+		removeAt: function( index ) {
 			this.splice( index, 1 );
 			return this;
 		},
 
-		pushUnique: function(item) {
+		pushUnique: function( item ) {
 			if (!this.contains( item )) {
 				this.push( item );
 			}
 			return this;
 		},
 
-		merge: function(items) {
+		merge: function( items ) {
 			if (items && items.length) {
 				for (var i = 0; i < items.length; i++) {
 					this.pushUnique( items[i] );
@@ -158,7 +156,7 @@
 		},
 		//it can be sortObject()
 		//sortObject(by)
-		sortObject: function(by, asc) {
+		sortObject: function( by, asc ) {
 			if (isUndefined( asc )) {
 				if (isUndefined( by )) {
 					asc = true;
@@ -174,7 +172,7 @@
 			}
 
 			if (by) {
-				this.sort( function(a, b) {
+				this.sort( function( a, b ) {
 					var av = a[by];
 					var bv = b[by];
 					if (av == bv) {
@@ -191,25 +189,25 @@
 	} );
 
 	augment( stringPrototype, {
-		startsWith: function(text) {
+		startsWith: function( text ) {
 			return this.indexOf( text ) === 0;
 		},
-		contains: function(text) {
+		contains: function( text ) {
 			return this.indexOf( text ) !== -1;
 		},
-		endsWith: function(suffix) {
+		endsWith: function( suffix ) {
 			return this.indexOf( suffix, this.length - suffix.length ) !== -1;
 		},
-		supplant: function(obj) {
+		supplant: function( obj ) {
 			return this.replace( rSupplant,
-				function(a, b) {
+				function( a, b ) {
 					var r = obj[b];
 					return typeof r ? r : a;
 				} );
 		},
 		format: function() {
 			var source = this;
-			$.each( arguments, function(index, value) {
+			$.each( arguments, function( index, value ) {
 				source = source.replace( new RegExp( "\\{" + index + "\\}", "g" ), value );
 			} );
 			return source;
@@ -220,6 +218,10 @@
 
 		constructor: Node,
 
+		toString: function() {
+			return this.path;
+		},
+
 		//get()
 		//get(true)
 		//
@@ -229,7 +231,7 @@
 		//
 		//does not support the following, as will be implemented as get((subPath = p1), p2)
 		//get(p1, p2)
-		get: function(subPath /*, p1, p2, .. for parameters of model functions*/) {
+		get: function( subPath /*, p1, p2, .. for parameters of model functions*/ ) {
 
 			var currentValue, accessor = this.accessor( subPath, true );
 
@@ -264,7 +266,7 @@
 			return JSON.stringify( this.get.apply( this, slice.call( arguments ) ) );
 		},
 
-		raw: function(subPath, value) {
+		raw: function( subPath, value ) {
 			var accessor;
 			if (isFunction( subPath )) {
 				value = subPath;
@@ -291,7 +293,7 @@
 		//the function context is bound to current proxy's parent
 		//what is different for get function is that, set will return a proxy
 		//and get will return the result of the function
-		set: function(force, subPath, value) {
+		set: function( force, subPath, value ) {
 			//allow set(path, undefined)
 			if (arguments.length == 1) {
 				if (this.path === "") {
@@ -331,7 +333,7 @@
 			}
 		},
 
-		accessor: function(subPath, readOnly /*internal use only*/) {
+		accessor: function( subPath, readOnly /*internal use only*/ ) {
 			//if it is not readOnly, and access out of boundary, it will throw exception
 			if (subPath === 0) {
 				subPath = "0";
@@ -382,7 +384,7 @@
 			};
 		},
 
-		create: function(force, subPath, value, accessor /* accessor is used internally */) {
+		create: function( force, subPath, value, accessor /* accessor is used internally */ ) {
 
 			if (!isBoolean( force )) {
 				accessor = value;
@@ -428,12 +430,12 @@
 				hostObj[accessor.index] = value;
 			}
 
-			trigger( physicalPath, physicalPath, afterCreate, value );
 			traverseModel( physicalPath, value );
+			trigger( physicalPath, physicalPath, afterCreate, value );
 			return this;
 		},
 
-		extend: function(subPath, object) {
+		extend: function( subPath, object ) {
 			var newModel;
 			if (!object) {
 				object = subPath;
@@ -452,7 +454,7 @@
 		//update(subPath, value)
 		//most of the time force is not used, by default is it is false
 		//by in case you want to bypass validation you can explicitly set to true
-		update: function(force, subPath, value, accessor) {
+		update: function( force, subPath, value, accessor ) {
 
 			if (arguments.length == 1) {
 				if (this.path === "") {
@@ -496,15 +498,16 @@
 
 			accessor.hostObj[accessor.index] = value;
 
+			traverseModel( physicalPath, value );
+
 			if (!force) {
 				trigger( physicalPath, physicalPath, afterUpdate, value, originalValue );
 			}
 
-			traverseModel( physicalPath, value );
 			return this;
 		},
 
-		del: function(subPath) {
+		del: function( subPath ) {
 			if (isUndefined( subPath )) {
 				if (this.path) {
 					return rootNode.del( this.path );
@@ -521,6 +524,8 @@
 			if (trigger( physicalPath, physicalPath, "beforeDel", undefined, removedValue ).hasError()) {
 				return false;
 			}
+
+			trigger( physicalPath, physicalPath, "duringDel", undefined, removedValue );
 
 			if (isHostObjectArray) {
 
@@ -540,7 +545,7 @@
 			return removedValue;
 		},
 
-		createIfUndefined: function(subPath, value) {
+		createIfUndefined: function( subPath, value ) {
 			if (isUndefined( value )) {
 				throw "missing value argument";
 			}
@@ -550,13 +555,22 @@
 				this.create( subPath, value, accessor );
 		},
 
+		toggle: function( subPath ) {
+
+			var accessor = this.accessor( subPath );
+			if (accessor.index in accessor.hostObj) {
+				this.update( subPath, !accessor.hostObj[accessor.index], accessor );
+			}
+			return this;
+		},
+
 		//navigation methods
-		pushStack: function(newNode) {
+		pushStack: function( newNode ) {
 			newNode.previous = this;
 			return newNode;
 		},
 
-		cd: function(relativePath) {
+		cd: function( relativePath ) {
 			return this.pushStack( hm( this.getPath( relativePath ) ) );
 		},
 
@@ -568,7 +582,7 @@
 			return this.cd( "*" );
 		},
 
-		sibling: function(path) {
+		sibling: function( path ) {
 			return this.cd( ".." + path );
 		},
 
@@ -578,18 +592,18 @@
 		},
 
 		//--------------path methods---------------
-		getPath: function(subPath) {
+		getPath: function( subPath ) {
 			//join the context and subPath together, but it is still a logical path
 			return mergePath( this.path, subPath );
 		},
 
 		//to get the logicalPath of current model, leave subPath empty
-		logicalPath: function(subPath) {
+		logicalPath: function( subPath ) {
 			return toLogicalPath( this.getPath( subPath ) );
 		},
 
 		//to get the physicalPath of current model, leave subPath empty
-		physicalPath: function(subPath) {
+		physicalPath: function( subPath ) {
 			return toPhysicalPath( this.getPath( subPath ) );
 		},
 
@@ -602,7 +616,7 @@
 		},
 
 		//call the native method of the wrapped value
-		invoke: function(methodName /*, p1, p2, ...*/) {
+		invokeUnwrapped: function( methodName /*, p1, p2, ...*/ ) {
 			if (arguments.length === 0) {
 				throw "methodName is missing";
 			}
@@ -612,15 +626,15 @@
 		},
 
 		//region array methods
-		indexOf: function(item) {
+		indexOf: function( item ) {
 			return this.get().indexOf( item );
 		},
 
-		contains: function(item) {
+		contains: function( item ) {
 			return (this.indexOf( item ) !== -1);
 		},
 
-		first: function(fn) {
+		first: function( fn ) {
 			return fn ? this.filter( fn )[0] : this.get( "0" );
 		},
 
@@ -629,18 +643,14 @@
 			return value[value.length - 1];
 		},
 
-		push: function(item) {
-			return this.create( this.get().length, item );
-		},
-
-		pushRange: function(items) {
-			for (var i = 0; i < items.length; i++) {
-				this.push( items[i] );
+		push: function( item ) {
+			for (var i = 0; i < arguments.length; i++) {
+				this.create( this.get().length, arguments[i] );
 			}
 			return this;
 		},
 
-		pushUnique: function(item) {
+		pushUnique: function( item ) {
 			return !this.contains( item ) ?
 				this.push( item ) :
 				this;
@@ -654,23 +664,23 @@
 			return this.del( 0 );
 		},
 
-		unshift: function(item) {
+		unshift: function( item ) {
 			return this.create( 0, item );
 		},
 
-		insertAt: function(index, item) {
+		insertAt: function( index, item ) {
 			return this.create( index, item );
 		},
 
-		updateAt: function(index, item) {
+		updateAt: function( index, item ) {
 			return this.update( index, item );
 		},
 
-		removeAt: function(index) {
+		removeAt: function( index ) {
 			return this.del( index );
 		},
 
-		move: function(fromIndex, toIndex) {
+		move: function( fromIndex, toIndex ) {
 			var count = this.count();
 
 			if (fromIndex !== toIndex &&
@@ -684,7 +694,7 @@
 			return this;
 		},
 
-		replaceItem: function(oldItem, newItem) {
+		replaceItem: function( oldItem, newItem ) {
 			if (oldItem == newItem) {
 				return this;
 			}
@@ -697,12 +707,12 @@
 			return this;
 		},
 
-		removeItem: function(item) {
+		removeItem: function( item ) {
 			var index = this.indexOf( item );
 			return index !== -1 ? this.removeAt( index ) : this;
 		},
 
-		removeItems: function(items) {
+		removeItems: function( items ) {
 			for (var i = 0; i < items.length; i++) {
 				this.removeItem( items[i] );
 			}
@@ -722,17 +732,18 @@
 		},
 
 		//fn is like function (index, item) { return item == 1; };
-		filter: function(fn) {
+		filter: function( fn ) {
 			return $( this.get() ).filter( fn ).get();
 		},
 
-		each: function(directAccess, fn) {
+		//fn: function (index, item, items) {}
+		each: function( directAccess, fn ) {
 			if (!isBoolean( directAccess )) {
 				fn = directAccess;
 				directAccess = false;
 			}
 
-			var hasChange, i, status, items;
+			var hasChange, i, status, items, itemModel;
 
 			if (directAccess) {
 
@@ -740,7 +751,7 @@
 
 				for (i = items.length - 1; i >= 0; i--) {
 					//this in the fn refer to the parent array
-					status = fn( i, items[i], items );
+					status = fn.call( items[i], i, items[i], items );
 					if (status === true) {
 						hasChange = true;
 					} else if (status === false) {
@@ -749,13 +760,13 @@
 				}
 
 				if (hasChange) {
-					this.triggerChange();
+					this.change();
 				}
 
 			} else {
 				for (i = this.count() - 1; i >= 0; i--) {
 					//this in the fn, refer to the parent model
-					var itemModel = this.cd( i );
+					itemModel = this.cd( i );
 					if (fn.call( itemModel, i, itemModel, this ) === false) {
 						break;
 					}
@@ -764,26 +775,26 @@
 			return this;
 		},
 
-		map: function(fn) {
+		map: function( fn ) {
 			return $.map( this.get(), fn );
 		},
 
-		sort: function(by, asc) {
+		sort: function( by, asc ) {
 			return trigger( this.path, this.path, "afterUpdate", this.get().sortObject( by, asc ) );
 		},
 		//#endregion
 
-		//-------model link method -----------
-		reference: function(/*targetPath1, targetPath2, ..*/) {
+		//-------model watch method -----------
+		watch: function( /*targetPath1, targetPath2, ..*/ ) {
 			for (var i = 0; i < arguments.length; i++) {
-				reference( this.path, arguments[i] );
+				watch( this.path, arguments[i] );
 			}
 			return this;
 		},
 
-		dereference: function(/*targetPath1, targetPath2, ..*/) {
+		unwatch: function( /*targetPath1, targetPath2, ..*/ ) {
 			for (var i = 0; i < arguments.length; i++) {
-				dereference( this.path, arguments[i] );
+				unwatch( this.path, arguments[i] );
 			}
 			return this;
 		},
@@ -791,7 +802,7 @@
 		//endregion
 
 		//-------other methods---------
-		isEmpty: function(subPath) {
+		isEmpty: function( subPath ) {
 			var value = this.get( subPath );
 			return !value ? true :
 				!isArray( value ) ? false :
@@ -802,11 +813,11 @@
 			return this.path.startsWith( shadowNamespace );
 		},
 
-		toJSON: function(subPath) {
+		toJSON: function( subPath ) {
 			return JSON.stringify( this.get( subPath ) );
 		},
 
-		compare: function(expression) {
+		compare: function( expression ) {
 			if (expression) {
 				expression = toTypedValue( expression );
 				if (isString( expression )) {
@@ -827,33 +838,33 @@
 			}
 		},
 
-		saveLocal: function(subPath) {
-			util.local( this.getPath( subPath ), this.get() );
+		saveLocal: function( subPath ) {
+			util.local( this.getPath( subPath ), this.get( subPath ) );
 			return this;
 		},
 
-		getLocal: function(subPath) {
+		getLocal: function( subPath ) {
 			return util.local( this.getPath( subPath ) );
 		},
 
-		restoreLocal: function(subPath) {
+		restoreLocal: function( subPath ) {
 			rootNode.set( this.getPath( subPath ), this.getLocal( subPath ) );
 			return this;
 		},
 
-		clearLocal: function(subPath) {
+		clearLocal: function( subPath ) {
 			util.local( this.getPath( subPath ), undefined );
 			return this;
 		}
 
 	};
 
-	function expandToHashes ($0) {
+	function expandToHashes( $0 ) {
 		return $0 === "." ? "#" : //if it is "." convert to "#"
 			new Array( $0.length + 2 ).join( "#" ); ////if it is "#" convert to "##"
 	}
 
-	var onAddOrUpdateHandlers = [function /*inferNodeDependencies*/ (context, index, value) {
+	var onAddOrUpdateHandlers = [function /*inferNodeDependencies*/ ( context, index, value ) {
 
 		//only try to parse function body
 		//if it is a parameter-less function
@@ -864,20 +875,20 @@
 
 		var functionBody = value.toString(),
 			path = context ? context + "." + index : index,
-			watchedPaths = inferDependencies( functionBody );
+			watchedPaths = extractWatchedPaths( functionBody );
 
 		for (var i = 0; i < watchedPaths.length; i++) {
-			reference( path, context ? mergePath( context, watchedPaths[i] ) : watchedPaths[i] );
+			watch( path, context ? mergePath( context, watchedPaths[i] ) : watchedPaths[i] );
 		}
 	}];
 
-	function processNewNode (contextPath, indexPath, modelValue) {
+	function processNewNode( contextPath, indexPath, modelValue ) {
 		for (var i = 0; i < onAddOrUpdateHandlers.length; i++) {
 			onAddOrUpdateHandlers[i]( contextPath, indexPath, modelValue );
 		}
 	}
 
-	function getMainPath (shadowPath) {
+	function getMainPath( shadowPath ) {
 		if (shadowPath === shadowNamespace) {
 			return "";
 		}
@@ -885,17 +896,17 @@
 		return match ? convertShadowKeyToMainPath( match[1] ) : shadowPath;
 	}
 
-	function convertShadowKeyToMainPath (key) {
+	function convertShadowKeyToMainPath( key ) {
 		return key.replace( rHash, reduceToDot );
 	}
 
-	function reduceToDot (hashes) {
+	function reduceToDot( hashes ) {
 		return hashes == "#" ? "." : // if is # return .
 			new Array( hashes.length ).join( "#" ); // if it is ## return #
 	}
 
 	/* processCurrent is used internally, don't use it */
-	function traverseModel (modelPath, modelValue, processCurrent) {
+	function traverseModel( modelPath, modelValue, processCurrent ) {
 		var contextPath,
 			indexPath,
 			indexOfLastDot = modelPath.lastIndexOf( "." );
@@ -930,25 +941,25 @@
 		}
 	}
 
-	function reference (referencingPath, referencedPath) {
-		referencedPath = toPhysicalPath( referencedPath );
-		var referencingPaths = referenceTable[referencedPath];
+	function watch( watchingPath, watchedPath ) {
+		watchedPath = toPhysicalPath( watchedPath );
+		var referencingPaths = watchTable[watchedPath];
 		if (!referencingPaths) {
-			referenceTable[referencedPath] = referencingPaths = [];
+			watchTable[watchedPath] = referencingPaths = [];
 		}
-		referencingPaths.pushUnique( referencingPath );
+		referencingPaths.pushUnique( watchingPath );
 	}
 
-	function dereference (referencingPath, referencedPath) {
-		referencedPath = toPhysicalPath( referencedPath );
-		var referencingPaths = referenceTable[referencedPath];
-		referencingPaths.remove( referencingPath );
-		if (!referencingPaths.length) {
-			delete referenceTable[referencedPath];
+	function unwatch( watchingPath, watchedPath ) {
+		watchedPath = toPhysicalPath( watchedPath );
+		var watchingPaths = watchTable[watchedPath];
+		watchingPaths.remove( watchingPath );
+		if (!watchingPaths.length) {
+			delete watchTable[watchedPath];
 		}
 	}
 
-	function inferDependencies (functionBody) {
+	function extractWatchedPaths( functionBody ) {
 		var memberMatch,
 			rtn = [];
 
@@ -958,19 +969,19 @@
 		return rtn;
 	}
 
-	function contextOfPath (path) {
+	function contextOfPath( path ) {
 		var match = rParentKey.exec( path );
 		return match && match[1] || "";
 	}
 
-	function indexOfPath (path) {
+	function indexOfPath( path ) {
 		var match = rIndex.exec( path );
 		return match[1] || match[0];
 	}
 
 	var dummy = {};
 
-	var Class = function _ (seed) {
+	var Class = function _( seed ) {
 		var temp;
 
 		if (!(this instanceof _)) {
@@ -989,13 +1000,13 @@
 	var superPrototype;
 	extend( Class.prototype, {
 
-		callProto: function(methodName) {
+		callProto: function( methodName ) {
 			var method = this.constructor.prototype[methodName];
 			return method.apply( this, slice.call( arguments, 1 ) );
 		},
 
 		//instance.callBase("method1", p1, p2,...);
-		callBase: function(methodName) {
+		callBase: function( methodName ) {
 			//superPrototype is global object, we use this
 			// because assume js in browser is a single threaded
 
@@ -1023,7 +1034,7 @@
 		 },
 		 */
 		//the default initialize is to extend the instance with seed data
-		initialize: function(seed) {
+		initialize: function( seed ) {
 			extend( this, seed );
 		},
 
@@ -1047,7 +1058,7 @@
 		//if You have a subType called Person
 		//you can Person.list([ seed1, seed2 ]);
 		//to create an array of typed items
-		list: function(seeds) {
+		list: function( seeds ) {
 
 			var i,
 				seed,
@@ -1058,7 +1069,13 @@
 
 				return rtn;
 
-			} else if (isArray( seeds )) {
+			} else {
+
+				if (!isArray( seeds )) {
+
+					seeds = slice.call( arguments );
+
+				}
 
 				itemIsObject = seeds.itemIsObject;
 
@@ -1067,12 +1084,11 @@
 
 					rtn.push(
 						itemIsObject || !isArray( seed ) ?
-							new this( seed ) :
+							seeds instanceof this ? this : new this( seed ) :
 							this.apply( null, seed )
 					);
 				}
-			} else {
-				rtn.push( seeds );
+
 			}
 
 			return rtn;
@@ -1080,17 +1096,17 @@
 
 		//to create a new Type call
 
-		extend: function(instanceProperties, staticProperties) {
+		extend: function( instanceMembers, staticMembers ) {
 			var Child,
 				Parent = this;
 
 			// The constructor function for the new subclass is either defined by you
 			// (the "constructor" property in your `extend` definition), or defaulted
 			// by us to simply call the parent's constructor.
-			if (instanceProperties && instanceProperties.hasOwnProperty( "constructor" )) {
-				Child = instanceProperties.constructor;
+			if (instanceMembers && instanceMembers.hasOwnProperty( "constructor" )) {
+				Child = instanceMembers.constructor;
 			} else {
-				Child = function _ () {
+				Child = function _() {
 					var temp;
 
 					if (!(this instanceof _)) {
@@ -1108,7 +1124,7 @@
 			}
 
 			// Add static properties to the constructor function, if supplied.
-			extend( Child, Parent, staticProperties );
+			extend( Child, Parent, staticMembers );
 
 			// Set the prototype chain to inherit from `parent`, without calling
 			// `parent`'s constructor function.
@@ -1118,8 +1134,8 @@
 
 			// Add prototype properties (instance properties) to the subclass,
 			// if supplied.
-			if (instanceProperties) {
-				extend( Child.prototype, instanceProperties );
+			if (instanceMembers) {
+				extend( Child.prototype, instanceMembers );
 			}
 
 			// Set a convenience property in case the parent's prototype is needed
@@ -1148,7 +1164,7 @@
 			// the the physical path is pointing to a shadow
 			// and the main model has been created
 			// and the shadow's parent is an object
-			toPhysicalPath: toPhysicalPath = function(logicalPath, createShadowIfNecessary /* internal use*/) {
+			toPhysicalPath: toPhysicalPath = function( logicalPath, createShadowIfNecessary /* internal use*/ ) {
 
 				var match, rtn = "", leftContext = "", mainValue, shadowKey, mainPath;
 
@@ -1217,7 +1233,7 @@
 					rtn ? rtn + "." + logicalPath :
 						logicalPath;
 			},
-			toLogicalPath: toLogicalPath = function(physicalPath) {
+			toLogicalPath: toLogicalPath = function( physicalPath ) {
 
 				var index, logicalPath, mainPath, match;
 
@@ -1246,11 +1262,22 @@
 			 * and  context is "a", it will be merged to "a.b" . If explicitly specify
 			 * convertSubPathToRelativePath to false, they will not be merged, so the "b" will be
 			 * returned as merge path*/
-			mergePath: mergePath = function(contextPath, subPath, convertSubPathToRelativePath
-			                                /*used internally*/) {
+			mergePath: mergePath = function( contextPath, subPath, convertSubPathToRelativePath
+			                                 /*used internally*/ ) {
+				if (subPath == "_") {
 
-				if (subPath == "_" || contextPath == "_") {
 					return "_";
+
+				} else if (contextPath == "_") {
+
+					if (subPath && subPath.startsWith( "/" )) {
+
+						contextPath = "";
+
+					} else {
+
+						return "_";
+					}
 				}
 
 				contextPath = toPhysicalPath( contextPath );
@@ -1305,22 +1332,22 @@
 				return contextPath + subPath;
 			},
 
-			isUndefined: isUndefined = function(obj) {
+			isUndefined: isUndefined = function( obj ) {
 				return (obj === undefined);
 			},
-			isPrimitive: isPrimitive = function(obj) {
+			isPrimitive: isPrimitive = function( obj ) {
 				return (obj === null ) || (typeof(obj) in primitiveTypes);
 			},
-			isString: isString = function(val) {
+			isString: isString = function( val ) {
 				return typeof val === "string";
 			},
-			isObject: isObject = function(val) {
+			isObject: isObject = function( val ) {
 				return $.type( val ) === "object";
 			},
-			isBoolean: isBoolean = function(object) {
+			isBoolean: isBoolean = function( object ) {
 				return typeof object === "boolean";
 			},
-			toTypedValue: toTypedValue = function(stringValue) {
+			toTypedValue: toTypedValue = function( stringValue ) {
 				if (isString( stringValue )) {
 					stringValue = $.trim( stringValue );
 					try {
@@ -1336,10 +1363,10 @@
 				}
 				return stringValue;
 			},
-			isPromise: isPromise = function(object) {
+			isPromise: isPromise = function( object ) {
 				return !!(object && object.promise && object.done && object.fail);
 			},
-			clearObj: clearObj = function(obj) {
+			clearObj: clearObj = function( obj ) {
 				if (isPrimitive( obj )) {
 					return null;
 				}
@@ -1350,14 +1377,14 @@
 				}
 				return obj;
 			},
-			clone: clone = function(original, deepClone) {
+			clone: clone = function( original, deepClone ) {
 				return isPrimitive( original ) ? original :
 					isArray( original ) ? original.slice( 0 ) :
 						isFunction( original ) ? original :
 							extend( !!deepClone, {}, original );
 			},
 
-			local: function(key, value) {
+			local: function( key, value ) {
 				if (arguments.length == 1) {
 					return JSON.parse( localStorage.getItem( key ) );
 				} else {
@@ -1369,22 +1396,24 @@
 				}
 			},
 
-			toString: function(value) {
+			toString: function( value ) {
 				return (value === null || value === undefined) ? "" : "" + value;
 			},
 
-			encodeHtml: function(str) {
+			//#debug
+			_referenceTable: watchTable,
+			//#end_debug
+
+			encodeHtml: function( str ) {
 				var div = document.createElement( 'div' );
 				div.appendChild( document.createTextNode( str ) );
 				return div.innerHTML;
-			},
-
-			_referenceTable: referenceTable
+			}
 
 		},
 
 		//this is used to process the new node added to repository
-		onAddOrUpdateNode: function(fn) {
+		onAddOrUpdateNode: function( fn ) {
 			if (fn) {
 				onAddOrUpdateHandlers.push( fn );
 				return this;
@@ -1393,7 +1422,7 @@
 			}
 		},
 
-		onDeleteNode: function(fn) {
+		onDeleteNode: function( fn ) {
 			if (fn) {
 				onDeleteHandlers.push( fn );
 				return this;
@@ -1407,7 +1436,7 @@
 	} );
 
 	var onDeleteHandlers = [
-		function /*removeModelLinksAndShadows*/ (physicalPath, removedValue) {
+		function /*removeModelLinksAndShadows*/ ( physicalPath, removedValue ) {
 
 			var watchedPath,
 				mainPath,
@@ -1416,14 +1445,14 @@
 				logicalPath = toLogicalPath( physicalPath );
 
 			//remove modelLinks whose publisherPath == physicalPath
-			for (watchedPath in referenceTable) {
-				dereference( physicalPath, watchedPath );
+			for (watchedPath in watchTable) {
+				unwatch( physicalPath, watchedPath );
 			}
 
 			//remove modelLinks whose subscriber == physicalPath
-			for (watchedPath in referenceTable) {
+			for (watchedPath in watchTable) {
 				if (watchedPath.startsWith( physicalPath )) {
-					delete referenceTable[watchedPath];
+					delete watchTable[watchedPath];
 				}
 			}
 
@@ -1443,7 +1472,7 @@
 		}
 	];
 
-	$( "get,set,del,extend".split( "," ) ).each( function(index, value) {
+	$( "get,set,del,extend".split( "," ) ).each( function( index, value ) {
 		hm[value] = function() {
 			return rootNode[value].apply( rootNode, slice.call( arguments ) );
 		};
@@ -1451,7 +1480,7 @@
 
 	rootNode = hm();
 
-	$fn.hmData = function(name, value) {
+	$fn.hmData = function( name, value ) {
 
 		var data = this.data( "hmData" );
 
@@ -1487,8 +1516,8 @@
 
 	//#debug
 
-	hm.debug.referencingPaths = function me (referencedPath, deep) {
-		var rtn = referenceTable[referencedPath] || [];
+	hm.debug.watchingPaths = function me( watchedPath, deep ) {
+		var rtn = watchTable[watchedPath] || [];
 		if (deep) {
 			for (var i = 0; i < rtn.length; i++) {
 				rtn.merge( me( rtn[i], deep ) );
@@ -1497,11 +1526,11 @@
 		return rtn;
 	};
 
-	hm.debug.referencedPath = function(referencingPath) {
+	hm.debug.watchedPaths = function( watchingPath ) {
 		var key, links, rtn = [];
-		for (key in referenceTable) {
-			links = referenceTable[key];
-			if (links.contains( referencingPath )) {
+		for (key in watchTable) {
+			links = watchTable[key];
+			if (links.contains( watchingPath )) {
 				rtn.push( key );
 			}
 		}
@@ -1509,7 +1538,7 @@
 	};
 
 	hm.debug.shadowNamespace = shadowNamespace;
-	hm.debug.inferDependencies = inferDependencies;
+	hm.debug.extractWatchedPaths = extractWatchedPaths;
 	hm.debug.removeAll = function() {
 		for (var key in repository) {
 			if (key !== shadowNamespace) {
@@ -1532,20 +1561,20 @@
 		subscriptionManager,
 		viewId = 0,
 		rInit = /init(\d*)/,
-		workflowType,
+		workflow,
 	//the handler string should be like
 	// "get set convert finalize initialize"
 		activityTypes = "get,set,convert,finalize,initialize".split( "," );
 
-	function returnFalse () {
+	function returnFalse() {
 		return false;
 	}
 
-	function returnTrue () {
+	function returnTrue() {
 		return true;
 	}
 
-	function Event ( publisher, originalPublisher, eventType, proposed, removed ) {
+	function Event( publisher, originalPublisher, eventType, proposed, removed ) {
 		this.publisher = tryWrapPublisherSubscriber( publisher );
 		this.originalPublisher = tryWrapPublisherSubscriber( originalPublisher );
 		this.type = eventType;
@@ -1587,9 +1616,11 @@
 			this.hasError = returnTrue;
 		},
 
+		abort: abort,
 		isCascadeStopped: returnFalse,
 		isPropagationStopped: returnFalse,
 		isImmediatePropagationStopped: returnFalse,
+		isAborted: returnFalse,
 		hasError: returnFalse,
 		level: 0
 	};
@@ -1635,7 +1666,7 @@
 		var subscriptionStore = [ ];
 
 		//target is either publisher or subscriber
-		function canRemoveSubscriptionData ( target, publisher, subscriber ) {
+		function canRemoveSubscriptionData( target, publisher, subscriber ) {
 			if (target === publisher || target === subscriber) {
 				return true;
 			} else {
@@ -1650,7 +1681,7 @@
 
 		}
 
-		function getSubscriptionsBy ( target, match ) {
+		function getSubscriptionsBy( target, match ) {
 			if (isString( target )) {
 				target = toPhysicalPath( target );
 			}
@@ -1685,7 +1716,7 @@
 
 			//object can be a model path or dom element, or object
 			getBy: function( subscriberOrPublisher ) {
-				return getSubscriptionsBy( subscriberOrPublisher, function match ( item, target ) {
+				return getSubscriptionsBy( subscriberOrPublisher, function match( item, target ) {
 					return item.subscriber == target || item.publisher == target;
 				} );
 			},
@@ -1694,7 +1725,7 @@
 				return subscriptionStore;
 			},
 
-			add: function( subscriber, publisher, eventTypes, workflowInstance ) {
+			add: function( subscriber, publisher, eventTypes, handler ) {
 				if (isString( publisher )) {
 
 					var events = eventTypes.split( rSpaces );
@@ -1708,7 +1739,7 @@
 					publisher: publisher,
 					subscriber: subscriber,
 					eventTypes: eventTypes,
-					workflow: workflowInstance
+					handler: handler
 				} );
 			},
 
@@ -1718,20 +1749,20 @@
 					j,
 					special,
 					subscription,
-					workflowInstance,
+					handler,
 					subscriptionsRemoved = [];
 
 				for (i = subscriptionStore.length - 1; i >= 0; i--) {
 					subscription = subscriptionStore[i];
-					workflowInstance = subscription.workflow;
+					handler = subscription.handler;
 
 					if (canRemoveSubscriptionData( subscriberOrPublisher, subscription.publisher, subscription.subscriber )) {
 
 						//if publisher is an view object, need to unbind or undelegate
 						//the jQuery event handler
 						if (!isString( subscription.publisher )) {
-							if (workflowInstance.delegateSelector) {
-								$( subscription.publisher ).undelegate( workflowInstance.delegateSelector, subscription.eventTypes, viewHandlerGateway );
+							if (handler.delegateSelector) {
+								$( subscription.publisher ).undelegate( handler.delegateSelector, subscription.eventTypes, viewHandlerGateway );
 
 							} else {
 								$( subscription.publisher ).unbind( subscription.eventTypes, viewHandlerGateway );
@@ -1765,12 +1796,12 @@
 		};
 	})();
 
-	function getMember ( e ) {
+	function getMember( e ) {
 
-		var workflowInstance = e.workflow,
-			propertyName = workflowInstance.getName,
+		var handler = e.handler,
+			propertyName = handler.getName,
 		//getSubProperty is used for properties like css, attr, prop
-			subPropertyName = workflowInstance.getParas,
+			subPropertyName = handler.getParas,
 			publisher = e.publisher;
 
 		return subPropertyName ? publisher[propertyName]( subPropertyName ) :
@@ -1778,11 +1809,11 @@
 				publisher[propertyName];
 	}
 
-	function setMember ( value, e ) {
-		var workflowInstance = e.workflow,
-			propertyName = workflowInstance.setName,
+	function setMember( value, e ) {
+		var handler = e.handler,
+			propertyName = handler.setName,
 		//setSubProperty is used for properties like css, attr, prop
-			subPropertyName = workflowInstance.setParas,
+			subPropertyName = handler.setParas,
 			subscriber = this;
 
 		subPropertyName ? subscriber[propertyName]( subPropertyName, value ) :
@@ -1804,7 +1835,8 @@
 		//or it can be "*commonHandler"
 		//or it can be { get:xx, set:xx, convert:xx, initialize: xx}
 		//it can be a javascript object, dom element, but it can not be a jQuery object
-		//subscriber can be null, "_", "null" to represent a case where there is not subscriber
+		//subscriber can be null, "_", "null", undefined to represent a case where there is not subscriber
+		//if subscriber is "", it means the the root model, the repository object
 		sub: function( subscriber, publisher, eventTypes, workflow, workflowOptions, delegateSelector ) {
 
 			if (subscriber instanceof hm) {
@@ -1854,7 +1886,7 @@
 
 			//allow subscriber "", because this is the path of root model
 			if (subscriber === "_" || subscriber == "null" || subscriber === null) {
-				subscriber = dummy;
+				subscriber = undefined;
 			}
 
 			if (workflowOptions === "_") {
@@ -1903,11 +1935,11 @@
 		 finalize: "xx" or function () {}
 		 }
 		 */
-		workflowType: workflowType = function( name, workflowPrototype ) {
+		workflow: workflow = function( name, workflowPrototype ) {
 
 			if (isObject( name )) {
 				for (var key in name) {
-					workflowStore[key] = buildWorkflowType( name[key] );
+					workflowStore[key] = buildWorkflow( name[key] );
 				}
 				return;
 			}
@@ -1920,7 +1952,8 @@
 				return workflowStore[name];
 			}
 
-			return (workflowStore[name] = buildWorkflowType( workflowPrototype ));
+			workflowStore[name] = buildWorkflow( workflowPrototype );
+			return workflowStore[name];
 
 		},
 		//common getter and setter are special activity in they way they are used
@@ -1932,11 +1965,11 @@
 		// are not meant to be used directly like other common getters or setters
 		activity: {
 
-			//initialize( publisher, subscriber, workflowInstance, workflowOptions );
+			//initialize( publisher, subscriber, handler, workflowOptions );
 			//inside initialize function, 'this' refer to the window
 			initialize: {},
 
-			//value = workflowInstance.get.apply( subscriber, [e].concat( triggerData ) );
+			//value = handler.get.apply( subscriber, [e].concat( triggerData ) );
 			//inside the getter function, 'this' refer to the subscriber
 			//get(e)
 			get: {
@@ -1949,19 +1982,42 @@
 					return e.originalPublisher.get();
 				},
 
-				skipGet: returnTrue
+				//if we want to call a member "foo" of publisher model
+				//but we don't want to do anything to the subscriber, we may want to use expression
+				//"*fakeGet foo"
+
+				//$click:items|*editShadowItem
+				//$click:items*queryResult|*editShadowItem
+				//workflow(handler) -->newShadowItem: "*fakeGet newShadowItem",
+				fakeGet: function() {
+					return dummy;
+				}
 			},
 
-			//workflowInstance.set.call( subscriber, value, e );
+			//handler.set.call( subscriber, value, e );
 			//inside setter function 'this' refer to the subscriber
 			//set(value, e)
 			set: {
 				setMember: setMember,
-				skipSet: $.noop
+
+				//because hm.js want to support simplified activity expression
+				//rule 1
+				// "val", when publisher is view, subscriber is model, which means "val" view,
+				//"set" model
+				//rule 2
+				//or "html", when publisher is model, subscriber is view, which means "get" model
+				//"html" view.
+
+				//so if publisher is model, subscriber is view. We just want to call a method "get"
+				//on model which modify model, but we don't want to call any method on view.
+				//we are in dilemma because of rule 2, we don't have a default method for a view.
+				//a case in use is that
+				//shadowEdit: "!init:.|initShadowEdit *fakeSet;" +
+				fakeSet: $.noop
 
 			},
 
-			//workflowInstance.convert.call( subscriber, value, e );
+			//handler.convert.call( subscriber, value, e );
 			//inside converter function 'this' refer to subscriber
 			convert: {
 
@@ -1976,11 +2032,9 @@
 				toDate: function( value ) {
 					return new Date( value );
 				}
-
-
 			},
 
-			//workflowInstance.finalize.call( subscriber, value, e );
+			//handler.finalize.call( subscriber, value, e );
 			//inside the afterSet function, 'this' refer to the subscriber
 			finalize: {
 				//				saveLocal: function( value, e ) {
@@ -1992,9 +2046,9 @@
 
 	workflowStore = {
 
-		triggerChange: {
+		change: {
 			get: function( e ) {
-				rootNode.triggerChange( e.workflow.options );
+				rootNode.change( e.handler.options );
 			}
 		},
 		saveLocal: {
@@ -2034,7 +2088,7 @@
 	//input: getUniqueViewEventTypes("click dblClick", viewWithViewId3, viewWithViewId4)
 	//output: "click.__hm.3.4 dblClick.__hm.3.4"
 	//it try to append an event name with and ".__hm.viewId.subscriberId"
-	function buildUniqueViewEventTypes ( originalEventTypes, publisherView, subscriber ) {
+	function buildUniqueViewEventTypes( originalEventTypes, publisherView, subscriber ) {
 
 		var publisherViewId = viewIdManager.getId( publisherView );
 
@@ -2057,22 +2111,21 @@
 	//if object is model path, wrap it into model
 	//if it is pure object, return as it is
 	//if it is _, return null
-	function tryWrapPublisherSubscriber ( publisherOrSubscriber ) {
+	function tryWrapPublisherSubscriber( publisherOrSubscriber ) {
 		if (isString( publisherOrSubscriber )) {
 			return hm( publisherOrSubscriber );
 
-		} else if (publisherOrSubscriber == dummy) {
-			return null;
-		}
-		else if (isObject( publisherOrSubscriber ) && !publisherOrSubscriber.nodeType) {
+		} else if (isObject( publisherOrSubscriber ) && !publisherOrSubscriber.nodeType) {
 			//not a DOM element
 			return publisherOrSubscriber;
-		} else {
+
+		} else if (!isUndefined( publisherOrSubscriber )) {
+
 			return $( publisherOrSubscriber );
 		}
 	}
 
-	function replaceDotOrStar ( match ) {
+	function replaceDotOrStar( match ) {
 		//if match is ".", normalize it to "\\."
 		//if match is "*", normalize it to ".*"
 		return match == "." ? "\\." : ".*";
@@ -2080,7 +2133,7 @@
 
 	//if one of the subscribed events is matched with triggering event
 	//return that subscribed event
-	function getMatchedSubscribedEvent ( subscribedEvents, triggeringEvent ) {
+	function getMatchedSubscribedEvent( subscribedEvents, triggeringEvent ) {
 
 		var match,
 			source,
@@ -2110,7 +2163,7 @@
 
 			source = isEndWithStarDot ? "^" + source : "^" + source + "$";
 
-			rMatchWithTriggeringEvent = new RegExp( source );
+			rMatchWithTriggeringEvent = new RegExp( source, "i" );
 
 			match = rMatchWithTriggeringEvent.test( triggeringEvent );
 
@@ -2138,10 +2191,10 @@
 	//check if subscription matched with the triggering event,
 	// and invoke its workflow, and also cascade the events to
 	//horizontally, e is mutable
-	function callbackModelSubscriptionHandler ( e ) {
+	function callbackModelSubscriptionHandler( e ) {
 
 		var subscription,
-			referencingNodes,
+			watchingPaths,
 			cascadeEvent,
 			i,
 			j,
@@ -2154,7 +2207,7 @@
 			e.matchedType = getMatchedSubscribedEvent( subscription.eventTypes, e.type );
 
 			if (e.matchedType) {
-				executeWorkflowInstance( tryWrapPublisherSubscriber( subscription.subscriber ), subscription.workflow, e );
+				executeHandler( tryWrapPublisherSubscriber( subscription.subscriber ), subscription.handler, e );
 			}
 
 			if (e.isImmediatePropagationStopped()) {
@@ -2164,13 +2217,13 @@
 
 		if (!e.isCascadeStopped()) {
 
-			referencingNodes = referenceTable[e.publisher.path];
+			watchingPaths = watchTable[e.publisher.path];
 
-			if (referencingNodes) {
-				for (j = 0; j < referencingNodes.length; j++) {
+			if (watchingPaths) {
+				for (j = 0; j < watchingPaths.length; j++) {
 
 					cascadeEvent = trigger(
-						referencingNodes[j],
+						watchingPaths[j],
 						e.originalPublisher.path,
 						e.type
 					);
@@ -2193,7 +2246,7 @@
 		defaultOptions.debug = true;
 	}
 
-	function unwrapObject ( object ) {
+	function unwrapObject( object ) {
 		if (object) {
 			if (!isUndefined( object.path )) {
 				return hm.util.toLogicalPath( object.path );
@@ -2201,20 +2254,20 @@
 				return object[0];
 			}
 		} else {
-			return "null"
+			return "null";
 		}
 	}
 
 	//#end_debug
 
-	function executeWorkflowInstance ( subscriber, workflowInstance, e, triggerData ) {
+	function executeHandler( subscriber, handler, e, triggerData ) {
 
 		//#debug
 		if (defaultOptions.debug) {
 			log( unwrapObject( e.publisher ),
 				e.type,
 				unwrapObject( subscriber ),
-				workflowInstance,
+				handler,
 				unwrapObject( e.originalPublisher )
 			);
 		}
@@ -2223,72 +2276,76 @@
 		var value,
 			clonedEventArg;
 
-		e.workflow = workflowInstance;
+		e.handler = handler;
 		e.subscriber = subscriber;
 
 		if (!isUndefined( triggerData )) {
 			//in the get method "this" refer to the handler
-			value = workflowInstance.get.apply( subscriber, [e].concat( triggerData ) );
+			value = handler.get.apply( subscriber, [e].concat( triggerData ) );
 		} else {
 			//in the get method "this" refer to the handler
-			value = workflowInstance.get.call( subscriber, e );
+			value = handler.get.call( subscriber, e );
+		}
+
+		if (e.isAborted()) {
+			return;
 		}
 
 		if (isPromise( value )) {
 			clonedEventArg = extend( true, {}, e );
 			value.done( function( value ) {
-				if (workflowInstance.convert) {
+				if (handler.convert) {
 					//in the convert method "this" refer to the handler
-					value = workflowInstance.convert.call( subscriber, value, e );
+					value = handler.convert.call( subscriber, value, e );
 				}
 
-				if (!isUndefined( value )) {
+				if (handler.set || handler.finalize) {
 					//make sure it is a real promise object
 					if (isPromise( value )) {
 						value.done( function( value ) {
-							setAndFinalize( subscriber, workflowInstance, value, clonedEventArg );
+							setAndFinalize( subscriber, handler, value, clonedEventArg );
 						} );
 
 					} else {
-						return setAndFinalize( subscriber, workflowInstance, value, e );
+						return setAndFinalize( subscriber, handler, value, e );
 					}
 				}
 			} );
 		} else {
-			if (workflowInstance.convert) {
+			if (handler.convert) {
 				//in the convert method "this" refer to the handler
-				value = workflowInstance.convert.call( subscriber, value, e );
+				value = handler.convert.call( subscriber, value, e );
 			}
 
-			if (!isUndefined( value )) {
+			if (handler.set || handler.finalize) {
 				//make sure it is a real promise object
 				if (isPromise( value )) {
 					clonedEventArg = extend( true, {}, e );
 					value.done( function( value ) {
-						setAndFinalize( subscriber, workflowInstance, value, clonedEventArg );
+						setAndFinalize( subscriber, handler, value, clonedEventArg );
 					} );
 
 				} else {
-					setAndFinalize( subscriber, workflowInstance, value, e );
+					setAndFinalize( subscriber, handler, value, e );
 				}
 			}
 		}
 
 	}
 
-	function setAndFinalize ( subscriber, workflowInstance, value, e ) {
-		if (!isUndefined( value )) {
-			workflowInstance.set && workflowInstance.set.call( subscriber, value, e );
-			workflowInstance.finalize && workflowInstance.finalize.call( subscriber, value, e );
+	function setAndFinalize( subscriber, handler, value, e ) {
+		if (value === dummy) {
+			value = undefined;
 		}
+		handler.set && handler.set.call( subscriber, value, e );
+		handler.finalize && handler.finalize.call( subscriber, value, e );
 	}
 
-	function subscribeModelEvent ( publisherPath, eventTypes, subscriber, handler, options ) {
+	function subscribeModelEvent( publisherPath, eventTypes, subscriber, handler, options ) {
 
 		var match,
 			delayMiniSecond,
 			initEvent,
-			workflowInstance,
 			events;
 
 		events = eventTypes.split( " " );
@@ -2304,16 +2361,16 @@
 			}
 		}
 
-		workflowInstance = buildWorkflowInstance( handler, publisherPath, subscriber, options );
+		handler = buildHandler( handler, publisherPath, subscriber, options );
 
 		if (eventTypes) {
-			subscriptionManager.add( subscriber, publisherPath, eventTypes, workflowInstance );
+			subscriptionManager.add( subscriber, publisherPath, eventTypes, handler );
 		}
 
 		if (initEvent) {
 			var init = function() {
 				var e = new Event( publisherPath, publisherPath, initEvent );
-				executeWorkflowInstance( tryWrapPublisherSubscriber( subscriber ), workflowInstance, e );
+				executeHandler( tryWrapPublisherSubscriber( subscriber ), handler, e );
 			};
 
 			if (delayMiniSecond) {
@@ -2325,12 +2382,11 @@
 	}
 
 	//subscribe jQuery event
-	function subscribeViewEvent ( viewPublisher, eventTypes, subscriber, handler, options, delegateSelector ) {
+	function subscribeViewEvent( viewPublisher, eventTypes, subscriber, handler, options, delegateSelector ) {
 
 		//get/set/convert/[init]/[options]
 		var needInit,
 			eventSeedData,
-			workflowInstance,
 			temp;
 
 		temp = eventTypes.split( " " );
@@ -2340,10 +2396,10 @@
 			eventTypes = temp.remove( "init" ).join( " " );
 		}
 
-		workflowInstance = buildWorkflowInstance( handler, viewPublisher, subscriber, options );
+		handler = buildHandler( handler, viewPublisher, subscriber, options );
 
 		eventSeedData = {
-			workflow: workflowInstance,
+			handler: handler,
 			subscriber: subscriber
 		};
 
@@ -2351,7 +2407,7 @@
 			eventTypes = buildUniqueViewEventTypes( eventTypes, viewPublisher, subscriber );
 
 			if (delegateSelector) {
-				workflowInstance.delegateSelector = delegateSelector;
+				handler.delegateSelector = delegateSelector;
 				$( viewPublisher ).delegate( delegateSelector, eventTypes, eventSeedData, viewHandlerGateway );
 
 			} else {
@@ -2362,7 +2418,7 @@
 			//we have passed handler, subscriber, options as jQuery eventSeedData,
 			//we still need to add them to subscriptions so that
 			//the view event handler can be unbind or undelegate
-			subscriptionManager.add( subscriber, viewPublisher, eventTypes, workflowInstance );
+			subscriptionManager.add( subscriber, viewPublisher, eventTypes, handler );
 
 			if (needInit) {
 				if (delegateSelector) {
@@ -2380,37 +2436,42 @@
 		}
 	}
 
-	//the general jQuery event handler
-	function viewHandlerGateway ( e ) {
+	function abort() {
+		this.isAborted = returnTrue;
+	}
 
+	//the general jQuery event handler
+	function viewHandlerGateway( e ) {
 		e.publisher = tryWrapPublisherSubscriber( e.currentTarget );
 		e.originalPublisher = tryWrapPublisherSubscriber( e.target );
+		e.isAborted = returnFalse;
+		e.abort = abort;
 		var subscriber = tryWrapPublisherSubscriber( e.data.subscriber );
 
-		var workflowInstance = e.data.workflow;
+		var handler = e.data.handler;
 		delete e.data;
 
 		if (arguments.length > 1) {
-			executeWorkflowInstance( subscriber, workflowInstance, e, slice.call( arguments, 1 ) );
+			executeHandler( subscriber, handler, e, slice.call( arguments, 1 ) );
 
 		} else {
-			executeWorkflowInstance( subscriber, workflowInstance, e );
+			executeHandler( subscriber, handler, e );
 		}
 	}
 
-	function buildWorkflowInstance ( workflowPrototype, publisher, subscriber, initializeOptions ) {
+	function buildHandler( workflowPrototype, publisher, subscriber, initializeOptions ) {
 
-		var workflowInstance;
+		var handler;
 
 		workflowPrototype = workflowPrototype || "";
 
 		if (isString( workflowPrototype )) {
 
-			workflowInstance = buildWorkflowInstanceFromString( workflowPrototype, publisher, subscriber, initializeOptions );
+			handler = buildHandlerFromString( workflowPrototype, publisher, subscriber, initializeOptions );
 
 		} else if (isFunction( workflowPrototype )) {
 
-			workflowInstance = extend( {
+			handler = extend( {
 					get: workflowPrototype,
 					options: initializeOptions
 				},
@@ -2419,7 +2480,7 @@
 
 		} else if (isObject( workflowPrototype ) && workflowPrototype.get) {
 
-			workflowInstance = extend( {
+			handler = extend( {
 				options: initializeOptions
 			}, workflowPrototype );
 
@@ -2427,22 +2488,30 @@
 			throw "invalid workflow expression";
 		}
 
-		initializeWorkflowInstance( workflowInstance, publisher, subscriber, initializeOptions );
+		initializeHandler( handler, publisher, subscriber, initializeOptions );
 
-		convertStringAccessorToFunction( "get", workflowInstance, publisher, subscriber );
-		convertStringAccessorToFunction( "set", workflowInstance, publisher, subscriber );
+		convertStringAccessorToFunction( "get", handler, publisher, subscriber );
+		convertStringAccessorToFunction( "set", handler, publisher, subscriber );
 		//
-		convertStringActivityToFunction( workflowInstance, "convert" );
-		convertStringActivityToFunction( workflowInstance, "finalize" );
+		convertStringActivityToFunction( "convert", handler, publisher, subscriber );
+		convertStringActivityToFunction( "finalize", handler, publisher, subscriber );
 
-		return workflowInstance;
+		return handler;
 	}
 
-	// workflowString is like "*workflowType" or "get set convert initialize finalize"
-	function buildWorkflowInstanceFromString ( workflowString, publisher, subscriber, initializeOptions ) {
+	// example of workflowString
+	// zero token, the subscriber must be function in repository
+	//
+	// single token like "*workflow", "val", "html", "#path",
+	// "val" will expand to "val set" or "get val" depending the type of publisher
+	//
+	// multiple tokens, all token can starts with "*", "#",
+	// but only "get" and "set" token can start normal characters,
+	// such as "val", "html"
+	function buildHandlerFromString( workflowString, publisher, subscriber, initializeOptions ) {
 
 		//get set convert initialize finalize
-		var workflowInstance,
+		var handler,
 			embeddedHandler,
 			activityName,
 			activityNames = workflowString.split( rSpaces ),
@@ -2452,22 +2521,24 @@
 
 			if (workflowString.startsWith( "*" )) {
 
-				workflowInstance = workflowStore[workflowString.substr( 1 )];
-				if (!workflowInstance) {
+				handler = workflowStore[workflowString.substr( 1 )];
+				if (!handler) {
 					throw "common workflow " + workflowString + " does not exist";
 				}
 
-				workflowInstance = extend( {}, workflowInstance );
+				handler = extend( {}, handler );
 
-			} else if ((embeddedHandler = tryGetEmbeddedHandler( workflowString, publisher, subscriber ))) {
+			} else if (workflowString.startsWith( "#" )) {
+
+				embeddedHandler = getEmbeddedActivity( workflowString, publisher, subscriber );
 
 				if (isFunction( embeddedHandler )) {
-					workflowInstance = extend( {
+					handler = extend( {
 						get: embeddedHandler,
 						options: initializeOptions
 					}, embeddedHandler );
 				} else if (isObject( embeddedHandler ) && embeddedHandler.get) {
-					workflowInstance = extend( {
+					handler = extend( {
 						options: initializeOptions
 					}, embeddedHandler );
 				} else {
@@ -2476,7 +2547,7 @@
 
 			} else if (!isUndefined( publisher ) && !isUndefined( subscriber )) {
 
-				workflowInstance = inferWorkflowInstanceFromSingleActivity(
+				handler = inferHandlerFromPublisherSubscriberWithSingleActivity(
 					publisher,
 					subscriber,
 					workflowString );
@@ -2492,41 +2563,39 @@
 			//this is the case
 			//activityNames.length > 1
 
-			workflowInstance = { };
+			handler = { };
 
+			//activityTypes is [get,set,convert,finalize,initialize]
 			for (var i = 0; i < activityTypes.length; i++) {
-				activityName = activityNames[i];
-				activityType = activityTypes[i];
+				activityName = activityNames[i]; //activityName is the token in workflow string
+				activityType = activityTypes[i]; //activityType is one of get,set,convert,finalize,initialize
 
 				if (activityName && (activityName !== "_" && activityName != "null")) {
-					workflowInstance[activityType] = activityName;
+					handler[activityType] = activityName;
 				}
 			}
 		}
-		return workflowInstance;
+		return handler;
 	}
 
 	//get embedded handler helper by path
 	//the path should be a path prefix with "#"
 	//that path can be absolute path like "#/a.b"
 	//or it can be relative path relative to subscriber model or publisher model
-	function tryGetEmbeddedHandler ( path, publisher, subscriber ) {
+	function getEmbeddedActivity( activityNamePrefixWithSharpCharacter, publisher, subscriber ) {
 
-		if (path.startsWith( "#" )) {
+		var modelPath = activityNamePrefixWithSharpCharacter.substr( 1 );
 
-			var modelPath = path.substr( 1 );
+		modelPath = isString( subscriber ) ? mergePath( subscriber, modelPath ) :
+			isString( publisher ) ? mergePath( publisher, modelPath ) :
+				modelPath;
 
-			modelPath = isString( subscriber ) ? mergePath( subscriber, modelPath ) :
-				isString( publisher ) ? mergePath( publisher, modelPath ) :
-					modelPath;
-
-			return rootNode.raw( modelPath );
-		}
+		return rootNode.raw( modelPath );
 	}
 
-	function initializeWorkflowInstance ( workflowInstance, publisher, subscriber, workflowOptions ) {
+	function initializeHandler( handler, publisher, subscriber, workflowOptions ) {
 
-		var initialize = workflowInstance.initialize;
+		var initialize = handler.initialize;
 
 		if (isString( initialize )) {
 			if (initialize.startsWith( "*" )) {
@@ -2539,25 +2608,24 @@
 				if (!rootNode.raw( path )) {
 					throw "initialize activity does not exist at path " + path;
 				}
-				initialize = function( publisher, subscriber, workflowInstance, options ) {
-					rootNode.set( path, publisher, subscriber, workflowInstance, options );
+				initialize = function( publisher, subscriber, handler, options ) {
+					rootNode.set( path, publisher, subscriber, handler, options );
 				};
 			}
 		}
 
 		if (initialize) {
-			initialize( tryWrapPublisherSubscriber( publisher ), tryWrapPublisherSubscriber( subscriber ), workflowInstance, workflowOptions );
-			delete workflowInstance.initialize;
+			initialize( tryWrapPublisherSubscriber( publisher ), tryWrapPublisherSubscriber( subscriber ), handler, workflowOptions );
 		} else if (!isUndefined( workflowOptions )) {
-			workflowInstance.options = workflowOptions;
+			handler.options = workflowOptions;
 		}
 	}
 
-	function inferWorkflowInstanceFromSingleActivity ( publisher, subscriber, activityName ) {
+	function inferHandlerFromPublisherSubscriberWithSingleActivity( publisher, subscriber, activityName ) {
 		//now workflowString does not startsWith *, it is not a workflow type
 		//infer handler from publisher and subscriber
 		//
-		var workflowInstance,
+		var handler,
 			isPublisherModel = isString( publisher ),
 			isSubscriberModel = isString( subscriber );
 
@@ -2566,7 +2634,7 @@
 			//will get model's value using default get activity,
 			//and update the view using workflow or  default "set" activity
 			//
-			workflowInstance = {
+			handler = {
 
 				get: "get",
 
@@ -2588,7 +2656,7 @@
 
 			if (activityName) {
 				//hm("name").sub($("#textBox", "change");
-				workflowInstance = {
+				handler = {
 					get: activityName,
 					set: "set"
 				};
@@ -2602,13 +2670,13 @@
 				var temp = rootNode.raw( subscriber );
 				if (isFunction( temp )) {
 
-					workflowInstance = {
+					handler = {
 						get: rootNode.raw( subscriber )
 					};
 
 				} else if (isObject( temp ) && temp.get) {
 
-					workflowInstance = temp;
+					handler = temp;
 
 				} else {
 					throw "missing handler";
@@ -2620,85 +2688,86 @@
 			//this is rarely the case, but it is still supported
 			//for example, a label subscribe the change of another label
 			//$("#lable2").sub("#lable1", "text");
-			workflowInstance = {
+			handler = {
 				get: activityName,
 				set: activityName
 			};
 		}
 
-		return workflowInstance;
+		return handler;
 	}
 
-	function buildWorkflowType ( workflowPrototype ) {
+	function buildWorkflow( workflowPrototype ) {
 
-		var workflowInstance;
+		var workflow;
 
 		if (isString( workflowPrototype )) {
 
-			workflowInstance = buildWorkflowTypeFromString( workflowPrototype );
+			workflow = buildWorkflowFromString( workflowPrototype );
 
 		} else if (isFunction( workflowPrototype ) || (isObject( workflowPrototype ) && workflowPrototype.get)) {
 
-			workflowInstance = workflowPrototype;
+			workflow = workflowPrototype;
 			if (isFunction( workflowPrototype )) {
 
-				workflowInstance = extend(
+				workflow = extend(
 					{
 						get: workflowPrototype
 					},
-					workflowInstance );
+					workflow );
 			}
 
 		} else {
 			throw "invalid workflow expression";
 		}
 
-		convertStringActivityToFunction( workflowInstance, "initialize" );
+		convertStringActivityToFunction( "initialize", workflow );
 		//
-		convertStringAccessorToFunction( "get", workflowInstance );
-		convertStringAccessorToFunction( "set", workflowInstance );
+		convertStringAccessorToFunction( "get", workflow );
+		convertStringAccessorToFunction( "set", workflow );
 		//
-		convertStringActivityToFunction( workflowInstance, "convert" );
-		convertStringActivityToFunction( workflowInstance, "finalize" );
+		convertStringActivityToFunction( "convert", workflow );
+		convertStringActivityToFunction( "finalize", workflow );
 
-		return workflowInstance;
+		return workflow;
 	}
 
-	function buildWorkflowTypeFromString ( workflowString ) {
+	function buildWorkflowFromString( workflowString ) {
 
-		var workflowInstance,
+		var workflow,
 			activityName,
 			activityNames = workflowString.split( rSpaces ),
 			activityType;
 
 		if (activityNames.length > 1) {
 
-			workflowInstance = { };
+			workflow = { };
 
 			for (var i = 0; i < activityTypes.length; i++) {
 				activityName = activityNames[i];
 				activityType = activityTypes[i];
 
 				if (activityName && (activityName !== "_" && activityName != "null")) {
-					workflowInstance[activityType] = activityName;
+					workflow[activityType] = activityName;
 				}
 			}
 		} else {
 			throw "invalid workflow type";
 		}
 
-		return workflowInstance;
+		return workflow;
 	}
 
-	function getActivitySet ( activityType ) {
+	function getActivitySet( activityType ) {
 		return hm.activity[activityType];
 	}
 
 	// publisher, subscriber is optional
-	function convertStringAccessorToFunction ( accessorType, workflowInstance, publisher, subscriber ) {
+	//accessor either "get" or "set"
+	function convertStringAccessorToFunction( accessorType, handler, publisher, subscriber ) {
 
 		//by default workflow.get == "get", workflow.set = "set"
-		var accessorKey = workflowInstance[accessorType];
+		var accessorKey = handler[accessorType];
 
 		if (accessorKey && isString( accessorKey )) {
 
@@ -2707,25 +2776,29 @@
 			if (accessorKey.startsWith( "*" )) {
 
 				accessorKey = accessorKey.substr( 1 );
-				workflowInstance[accessorType] = accessors[accessorKey];
+				handler[accessorType] = accessors[accessorKey];
 
-				if (!workflowInstance[accessorType]) {
+				if (!handler[accessorType]) {
 					throw accessorKey + " does not exists " + accessorType + " Activity";
 				}
+
+			} else if (accessorKey.startsWith( "#" )) {
+
+				handler[accessorType] = getEmbeddedActivity( accessorKey, publisher, subscriber );
 
 			} else {
 
 				var keys = accessorKey.split( "*" );
 
-				//use defaultGet or defaultSet and decorate, if accessorKey does not begin with "*"
+				//use defaultGet or defaultSet and parseSubs, if accessorKey does not begin with "*"
 				// handler.setProperty = accessorKey or
 				// handler.getProperty = accessorKey
-				workflowInstance[accessorType] = accessorType == "get" ? getMember : setMember;
-				workflowInstance[accessorType + "Name"] = keys[0];
+				handler[accessorType] = accessorType == "get" ? getMember : setMember;
+				handler[accessorType + "Name"] = keys[0];
 
 				if (keys[1]) {
 					//accessorKey = "css*color"
-					workflowInstance[accessorType + "Paras"] = keys[1];
+					handler[accessorType + "Paras"] = keys[1];
 				}
 
 				if (!isUndefined( publisher ) && !isUndefined( subscriber )) {
@@ -2736,7 +2809,7 @@
 		}
 	}
 
-	function ensureTargetHasAccessor ( accessorType, activityName, target ) {
+	function ensureTargetHasAccessor( accessorType, activityName, target ) {
 		var missingMember;
 		if (isString( target )) {
 
@@ -2762,26 +2835,30 @@
 	}
 
 	//activityType is like initialize, convert, finalize
-	function convertStringActivityToFunction ( workflowInstance, activityType ) {
+	//activityType for "get", "set" is taken care by convertStringAccessorToFunction
+	function convertStringActivityToFunction( activityType, handler, publisher, subscriber ) {
 		//because it is optional, we need make sure handler want to have this method
-		var activityName = workflowInstance[activityType];
+		var activityName = handler[activityType];
 		if (isString( activityName )) {
 
 			if (activityName.startsWith( "*" )) {
-				workflowInstance[activityType] = getActivitySet( activityType )[activityName.substr( 1 )];
-				if (!workflowInstance[activityType]) {
+				handler[activityType] = getActivitySet( activityType )[activityName.substr( 1 )];
+				if (!handler[activityType]) {
 					throw  activityName + "Activity does not exists";
 				}
 
+			} else if (activityName.startsWith( "#" )) {
+
+				handler[activityType] = getEmbeddedActivity( activityName, publisher, subscriber );
+
 			} else {
-				workflowInstance[activityType] = function() {
-					return rootNode.raw( activityName ).apply( this, arguments );
-				};
+				throw 'activity other than "get" and "set"  must begin with "*" or "#" ';
+
 			}
 		}
 	}
 
-	function unsubscribe ( target ) {
+	function unsubscribe( target ) {
 		if (isObject( target )) {
 			if (!viewIdManager.getId( target )) {
 				return;
@@ -2814,7 +2891,7 @@
 			return this;
 		},
 
-		triggerChange: function( subPath ) {
+		change: function( subPath ) {
 			var physicalPath = this.physicalPath( subPath ),
 				value = this.get( subPath );
 			trigger( physicalPath, physicalPath, "afterUpdate", value, value );
@@ -2836,16 +2913,38 @@
 			return this;
 		},
 
-		subsToMe: function() {
-			return subscriptionManager.getByPublisher( this.path );
+		subsToMe: function( print ) {
+			var rtn = subscriptionManager.getByPublisher( this.path );
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this.path, rtn, "toMe" );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
-		subsFromMe: function() {
-			return subscriptionManager.getBySubscriber( this.path );
+		subsFromMe: function( print ) {
+			var rtn = subscriptionManager.getBySubscriber( this.path );
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this.path, rtn, "fromMe" );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
-		subscriptions: function() {
-			return subscriptionManager.getBy( this.path );
+		subs: function( print ) {
+			var rtn = subscriptionManager.getBy( this.path );
+
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this.path, rtn );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
 		/*
@@ -2903,19 +3002,43 @@
 			return this;
 		},
 
-		subsToMe: function() {
-			return subscriptionManager.getByPublisher( this[0] );
+		subsToMe: function( print ) {
+			var rtn = subscriptionManager.getByPublisher( this[0] );
+
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this[0], rtn, "toMe" );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
-		subsFromMe: function() {
-			return subscriptionManager.getBySubscriber( this[0] );
+		subsFromMe: function( print ) {
+			var rtn = subscriptionManager.getBySubscriber( this[0] );
+
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this[0], rtn, "fromMe" );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
-		subscriptions: function() {
-			return subscriptionManager.getBy( this[0] );
+		subs: function( print ) {
+			var rtn = subscriptionManager.getBy( this[0] );
+
+			//#debug
+			if (print && hm.printSubscriptions) {
+				hm.printSubscriptions( this[0], rtn );
+			}
+			//#end_debug
+
+			return rtn;
 		},
 
-		initView: function( path, workflow, options ) {
+		renderView: function( path, workflow, options ) {
 			hm.sub( this, path, "init", workflow, options );
 			return this;
 		},
@@ -2956,10 +3079,10 @@
 	//
 	//unlike $().mapEvent("click", "y"), this method create a new event type for all
 	//jQuery object
-	hm.newViewEvent = function( event, baseEvent, condition ) {
+	hm.newJqEvent = function( event, baseEvent, condition ) {
 		if (isObject( event )) {
 			for (var key in event) {
-				hm.newViewEvent( key, event[key][0], event[key][1] );
+				hm.newJqEvent( key, event[key][0], event[key][1] );
 			}
 			return this;
 		}
@@ -3001,7 +3124,7 @@
 
 	//#debug
 	hm.debug.getMatchedSubscribedEvent = getMatchedSubscribedEvent;
-	hm.debug.buildWorkflowType = buildWorkflowType;
+	hm.debug.buildWorkflowType = buildWorkflow;
 	hm.debug.getMember = getMember;
 	hm.debug.setMember = setMember;
 	hm.debug.unsub = function( object ) {
@@ -3015,13 +3138,13 @@
 
 
 	var rSubscriptionProperty = /([!$]?)([\w \+\-\*\.]+?):([\w\W]+?)\s*(?:[;]\s*|$)/g,
-		rGroupText = /^([^|]+)(\|(.*))?$/,
+		rBindingText = /^([^|]+)(\|(.*))?$/,
 		rSubscriptionValueSeparator = /\s*\|\s*/g;
 
 	defaultOptions.subsAttr = "data-sub";
-	defaultOptions.autoparseSub = true;
+	defaultOptions.autoParse = true;
 
-	function mergeOptions ( parentOptions, localOptions ) {
+	function mergeOptions( parentOptions, localOptions ) {
 		if (localOptions !== "_") {
 			return  (localOptions && localOptions.startsWith( "_" )) ?
 				localOptions.substr( 1 ) :
@@ -3029,7 +3152,7 @@
 		}
 	}
 
-	function getInheritedNamespace ( elem ) {
+	function getInheritedNamespace( elem ) {
 
 		var $parent = $( elem );
 
@@ -3044,15 +3167,78 @@
 		return "";
 	}
 
+	var reUnderscore = /_/g;
+	var reAttrDash = /-(\w)/g;
+	var rDataAttrPrefix = /^data-/;
+
+	var replaceAttrDashWithCapitalCharacter = function( match, $1 ) {
+		return $1.toUpperCase();
+	};
+
+	//convert add-class to addClass
+	//convert $enter_blur to $enter blur
+	function normalizeAttributeName( attributeName ) {
+		attributeName = attributeName.replace( rDataAttrPrefix, "" );
+
+		//if subscription involve with more than one events, you can
+		//concatenate them with "_", here we need to revert them back
+		//such as "$click_mouseover" need to be changed to "$click mouseover"
+		if (attributeName.startsWith( "!" ) || attributeName.startsWith( "$" )) {
+
+			attributeName = attributeName.replace( reUnderscore, " " );
+
+		}
+		return attributeName.replace( reAttrDash, replaceAttrDashWithCapitalCharacter );
+	}
+
+	function extractSubscriptionText( elem ) {
+		if (elem.nodeType !== 1) {
+			return;
+		}
+		var i,
+			attr,
+			attributeName,
+			attributes = elem.attributes,
+			subscriptionText = attributes[defaultOptions.subsAttr] && attributes[defaultOptions.subsAttr].nodeValue || "";
+
+		for (i = 0; i < attributes.length; i++) {
+			attr = attributes[i];
+			if (attr.name !== defaultOptions.subsAttr) {
+				attributeName = normalizeAttributeName( attr.name );
+				//if attributeName is recognized by the Hm.js,
+				// such as ns="xxx", bindingName="xxx", !event="xxx" , $event="xxx"
+				//extract them and append to the subscription text
+				if (attributeName == "ns" || _bindings[attributeName]) {
+					//if the attribute does not have a value like <div debug>
+					//it is the same as <div debug="/">
+					subscriptionText = subscriptionText + ";" + attributeName + ":" + (attr.nodeValue || "/");
+
+				} else if (attributeName.startsWith( "!" ) || attributeName.startsWith( "$" )) {
+					var nodeValues = attr.nodeValue.split( ";" );
+					for (var j = 0; j < nodeValues.length; j++) {
+						var nodeValue = nodeValues[j];
+						subscriptionText = subscriptionText + ";" + attributeName + ":" + nodeValue;
+					}
+				}
+			}
+		}
+
+		var tagBindingName = "tag_" + elem.tagName;
+		if (_bindings[tagBindingName]) {
+			subscriptionText = subscriptionText + ";" + tagBindingName + ":.";
+		}
+		return subscriptionText.replace( /^;/, "" );
+	}
+
 	//support
-	//new Group()
-	//new Group(groupValue, parentGroup)
-	//new Group("$click|*alert;val:path", parentGroup);
-	function Group ( subscriptionText, parentGroup, groupNs, groupOptions ) {
+	//new Binding()
+	//new Binding(subscriptionText, parentBinding)
+	//new Binding("$click|*alert;val:path", parentBinding);
+	function Binding( subscriptionText, parentBinding, bindingNs, bindingOptions ) {
 
-		var nsProperty, match, emptyGroup;
+		var nsProperty, match, emptyBinding;
 
-		//new Group()
+		//handle the case: new Binding()
 		if (!subscriptionText) {
 			//
 			//shared property
@@ -3060,128 +3246,141 @@
 			return;
 		}
 
-		//new Group (elem);
+		//handle the case : new Binding (elem);
 		if (subscriptionText.nodeType) {
 			var elem = subscriptionText;
-			subscriptionText = $.trim( $( elem ).attr( defaultOptions.subsAttr ) );
+			subscriptionText = parentBinding || extractSubscriptionText( elem );
 			if (subscriptionText) {
-				emptyGroup = new Group();
-				emptyGroup.elem = elem;
-				emptyGroup.ns = getInheritedNamespace( elem );
-				return new Group( subscriptionText, emptyGroup );
+				emptyBinding = new Binding();
+				emptyBinding.elem = elem;
+				emptyBinding.ns = getInheritedNamespace( elem );
+				return new Binding( subscriptionText, emptyBinding );
 			}
 			return;
 		}
 
-		//new Group(subscriptionText);
-		if (!parentGroup) {
-			emptyGroup = new Group();
+		if (!parentBinding) {
+			emptyBinding = new Binding();
 			//fake an elem
-			emptyGroup.elem = {};
-			return new Group( subscriptionText, emptyGroup );
+			emptyBinding.elem = {};
+			return new Binding( subscriptionText, emptyBinding );
 		}
 
-		//new Group(subscriptionText, parentGroup);
+		//handle the case: new Binding(subscriptionText, parentBinding);
 		//
 		//private data
 		this.sub = [];
 		this.pub = [];
-		this.groups = [];
+		this.bindings = [];
 
 		while ((match = rSubscriptionProperty.exec( subscriptionText ))) {
 
 			var prefix = match[1],
-				key = match[2],
-				value = match[3],
-				keyValuePair = {
-					key: key,
-					value: value
-				};
+				prop = $.trim( match[2] ),
+				value = $.trim( match[3] );
 
 			if (prefix) {
 
-				this[prefix == "$" ? "pub" : "sub"].push( keyValuePair );
+				this[prefix == "$" ? "pub" : "sub"].push( { eventTypes: prop, value: value } );
 
 			} else {
 
-				if (key == "ns") {
+				if (prop == "ns") {
 					nsProperty = value;
 
 				} else {
-					this.groups.push( keyValuePair );
+					this.bindings.push( { bindingName: prop, value: value} );
 				}
 			}
 		}
 
-		this.ns = mergePath( mergePath( parentGroup.ns, groupNs ), nsProperty );
+		this.ns = mergePath( mergePath( parentBinding.ns, bindingNs ), nsProperty );
 		//shared data
 		this.text = subscriptionText;
-		this.elem = parentGroup.elem;
-		this.subscriptions = parentGroup.subscriptions;
+		this.elem = parentBinding.elem;
+		//this is a singleton
+		//this.subscriptions = parentBinding.subscriptions;
 
-		if (parentGroup.elemGroup) {
-			this.elemGroup = parentGroup.elemGroup;
+		if (parentBinding.context) {
+
+			this.context = parentBinding.context;
+
 		} else {
-			this.elemGroup = this;
+
+			this.context = this;
+			this.dynamicBindings = [];
+			this.subscriptions = [];
 			$( this.elem ).hmData( "ns", this.ns );
 		}
 
-		this.options = mergeOptions( parentGroup.options, groupOptions );
+		this.options = mergeOptions( parentBinding.options, bindingOptions );
 
-		this.importGroup();
-		this.importSubscriptions( "sub" );
-		this.importSubscriptions( "pub" );
-
-		this.debug && this.print();
+		this._importBindings();
+		this._importSubscriptions( "sub" );
+		this._importSubscriptions( "pub" );
 
 	}
 
-	Group.prototype = {
+	Binding.prototype = {
 
-		importGroup: function() {
+		_importBindings: function() {
 
 			var i,
-				groupName,
-				referencedGroup,
-				group,
+				bindingName,
+				wellknownBinding,
+				binding,
 				subTextParts,
-				groupNs,
-				groupOptions,
-				groups = this.groups;
+				bindingNs,
+				bindingOptions,
+				bindings = this.bindings;
 
-			for (i = 0; i < groups.length; i++) {
+			for (i = 0; i < bindings.length; i++) {
 
-				group = groups[i];
-				groupName = group.key;
+				binding = bindings[i];
+				bindingName = binding.bindingName;
 
 				//if value is "path|option1|option2"
 				//
-				subTextParts = rGroupText.exec( group.value );
-				groupNs = subTextParts[1]; // "path"
-				groupOptions = subTextParts[3]; //"option1|option2"
+				subTextParts = rBindingText.exec( binding.value );
+				bindingNs = subTextParts[1]; // "path"
+				bindingOptions = subTextParts[3]; //"option1|option2"
 
-				referencedGroup = hm.groups[groupName];
+				wellknownBinding = _bindings[bindingName];
 
-				if (isFunction( referencedGroup )) {
+				if (isFunction( wellknownBinding )) {
 
-					referencedGroup(
+					var temp = [
+						wellknownBinding,
 						this.elem,
-						mergePath( this.ns, groupNs ),
+						mergePath( this.ns, bindingNs ),
 						this,
-						mergeOptions( this.options, groupOptions )
-					);
+						mergeOptions( this.options, bindingOptions )
+					];
 
-				} else if (isString( referencedGroup )) {
+					if (bindingName == "runFirst") {
 
-					//recursively import referencedGroup
-					new Group( referencedGroup, this, groupNs, groupOptions );
+						this.context.runFirst = temp;
+
+					} else if (bindingName == "runLast") {
+
+						this.context.runLast = temp;
+
+					} else {
+
+						this.context.dynamicBindings.push( temp );
+					}
+
+				} else if (isString( wellknownBinding )) {
+
+					//recursively import referencedBinding
+					new Binding( wellknownBinding, this, bindingNs, bindingOptions );
 
 				}
 			}
 		},
 
 		//subscriptionType is either "pub" or "sub"
-		importSubscriptions: function( subscriptionType ) {
+		_importSubscriptions: function( subscriptionType ) {
 
 			var i,
 				subscriptionEntry,
@@ -3194,7 +3393,7 @@
 			for (i = 0; i < subscriptionEntries.length; i++) {
 
 				subscriptionEntry = subscriptionEntries[i];
-				eventTypes = subscriptionEntry.key;
+				eventTypes = subscriptionEntry.eventTypes;
 
 				subscriptionParts = subscriptionEntry.value.split( rSubscriptionValueSeparator );
 
@@ -3232,7 +3431,7 @@
 		},
 
 		appendSub: function( subscriber, publisher, eventTypes, handler, options, delegate ) {
-			this.subscriptions.push( {
+			this.context.subscriptions.push( {
 				publisher: publisher,
 				eventTypes: eventTypes,
 				subscriber: subscriber,
@@ -3242,8 +3441,8 @@
 			} );
 		},
 
-		prependSub: function prependSub ( subscriber, publisher, eventTypes, handler, options, delegate ) {
-			this.subscriptions.unshift( {
+		prependSub: function prependSub( subscriber, publisher, eventTypes, handler, options, delegate ) {
+			this.context.subscriptions.unshift( {
 				publisher: publisher,
 				eventTypes: eventTypes,
 				subscriber: subscriber,
@@ -3254,19 +3453,39 @@
 		},
 
 		clearSubs: function() {
-			this.subscriptions.splice( 0, this.subscriptions.length );
+			this.context.subscriptions.splice( 0, this.subscriptions.length );
 		}
 	};
 
-	function buildElemGroup ( elem ) {
-		var elemGroup, subscriptions, i, subscription, $elem = $( elem );
+	function parseSubs( elem ) {
 
-		if (!$elem.hmData( "parsed" ) && $elem.attr( defaultOptions.subsAttr )) {
+		var subscriptionText,
+			context,
+			subscriptions,
+			i,
+			subscription,
+			$elem = $( elem );
 
-			elemGroup = new Group( elem );
-			subscriptions = elemGroup.subscriptions;
+		if (!$elem.hmData( "parsed" ) && (subscriptionText = extractSubscriptionText( elem ))) {
 
-			elemGroup.preSub && elemGroup.preSub();
+			context = new Binding( elem, subscriptionText );
+			subscriptions = context.subscriptions;
+
+			var runFirst = context.runFirst;
+			if (runFirst) {
+				runFirst[0]( runFirst[1], runFirst[2], runFirst[3], runFirst[4] );
+			}
+
+			var dynamicBindings = context.dynamicBindings;
+			for (i = 0; i < dynamicBindings.length; i++) {
+				var dynamicBinding = dynamicBindings[i];
+				dynamicBinding[0]( dynamicBinding[1], dynamicBinding[2], dynamicBinding[3], dynamicBinding[4] );
+			}
+
+			var runLast = context.runLast;
+			if (runLast) {
+				runLast[0]( runLast[1], runLast[2], runLast[3], runLast[4] );
+			}
 
 			for (i = 0; i < subscriptions.length; i++) {
 
@@ -3281,56 +3500,74 @@
 				);
 			}
 
-			elemGroup.postSub && elemGroup.postSub();
+			//#debug
+			context.debug && context.print();
+			//#end_debug
+
 			//
 			$elem.hmData( "parsed", true );
 		}
 
 		$elem.children().each( function() {
-			buildElemGroup( this );
+			parseSubs( this );
 		} );
 	}
 
 	//delay auto parse to way for some dependencies to resolve asynchronously
 	setTimeout( function() {
 		$( function() {
-			if (defaultOptions.autoparseSub) {
-				buildElemGroup( document.documentElement );
+			if (defaultOptions.autoParse) {
+				parseSubs( document.documentElement );
 			}
 		} );
 	}, 1 );
 
-	$fn.parseSub = function() {
+	$fn.parseSubs = function() {
 		return this.each( function() {
-			buildElemGroup( this );
+			parseSubs( this );
 		} );
 	};
 
 	var logModel = hm( "*log", [] );
+
+	var _bindings = {};
+
+	function bindings( name, definition, isTag ) {
+		if (!name) {
+			return _bindings;
+		}
+
+		if (!definition) {
+
+			if (isObject( name )) {
+				for (var key in name) {
+					bindings( key, name[key] );
+				}
+				return this;
+
+			} else {
+				return _bindings[name];
+			}
+		}
+
+		if (isArray( definition )) {
+			definition = definition.concat( ";" );
+		}
+
+		_bindings[isTag ? "tag_" + name.toUpperCase() : name] = definition;
+		return this;
+	}
+
 	extend( hm, {
 
-		groups: {
+		binding: bindings,
 
-			code: function( elem, path, elemGroup, options ) {
-				rootNode.get( path, elem, path, elemGroup, options );
-			},
-
-			preSub: function( elem, path, elemGroup, options ) {
-				elemGroup.preSub = function() {
-					rootNode.get( path, elem, path, elemGroup, options );
-				};
-			},
-
-			postSub: function( elem, path, elemGroup, options ) {
-				elemGroup.postSub = function() {
-					rootNode.get( path, elem, path, elemGroup, options );
-				};
-			}
-		},
-
-		Group: Group,
+		//#debug
+		Binding: Binding,
+		//#end_debug
 
 		log: function( message, color ) {
+			message = message + "";
 			message = color ? "<div style='color:" + color + "'>" + message + "</div> " : message;
 			logModel.push( message );
 		},
@@ -3340,101 +3577,1425 @@
 		}
 	} );
 
+	function adhocBinding( elem, path, context, options ) {
+		rootNode.get( path, elem, path, context, options );
+	}
+
+	bindings( "runFirst", adhocBinding );
+	bindings( "runLast", adhocBinding );
+
 //#debug
 //
 //<@depends>subscription.js, model.js, declarative.js</@depends>
 
 
-	Group.prototype.print = function() {
+	Binding.prototype.print = function() {
 		var subscriptions = this.subscriptions,
 			elem = this.elem;
 
-		var message = "<table border='1' cellpadding='6' style='border-collapse: collapse '>" +
-		              "<tr><td>element</td><td colspan='6'>" + formatPrint( elem ) + "</td> </tr>" +
-		              "<tr><td>ns</td><td colspan='6'>" + formatPrint( this.ns ) + "</td></tr>" +
-		              "<tr><td>text</td><td colspan='6'>" + formatPrint( this.text ) + "</td></tr>" +
-		              "<tr><td>sub</td><td colspan='6'>" + formatPrint( this.sub ) + "</td></tr>" +
-		              "<tr><td>pub</td><td colspan='6'>" + formatPrint( this.pub ) + "</td></tr>" +
-		              "<tr><td>groups</td><td colspan='6'>" + formatPrint( this.groups ) + "</td></tr>";
+		var html = "<table border='1' cellpadding='6' style='border-collapse: collapse; width:100%;'>" +
+		           "<tr><td>element</td><td colspan='6'>" + formatParty( elem ) + "</td> </tr>" +
+		           "<tr><td>model path</td><td colspan='6'>" + formatParty( this.ns ) + "</td></tr>" +
+		           "<tr><td>text</td><td colspan='6'>" + formatPrint( this.text ) + "</td></tr>";
+
+		if (this.sub.length) {
+			html += "<tr><td>sub</td><td colspan='6'>" + formatPrint( this.sub ) + "</td></tr>";
+		}
+
+		if (this.pub.length) {
+			html += "<tr><td>pub</td><td colspan='6'>" + formatPrint( this.pub ) + "</td></tr>";
+		}
+
+		if (this.bindings.length) {
+			html += "<tr><td>binding</td><td colspan='6'>" + formatPrint( this.bindings ) + "</td></tr>";
+		}
 
 		if (subscriptions.length) {
 
-			message += "<tr>" +
-			           "<th></th>" +
-			           "<th>subscriber</th>" +
-			           "<th>publisher</th>" +
-			           "<th>eventTypes</th>" +
-			           "<th>handler</th>" +
-			           "<th>options</th>" +
-			           "<th>delegate</th>" +
-			           "</tr>";
+			html += "<tr>" +
+			        "<th></th>" +
+			        "<th>subscriber</th>" +
+			        "<th>publisher</th>" +
+			        "<th>eventTypes</th>" +
+			        "<th>handler</th>" +
+			        "<th>options</th>" +
+			        "<th>delegate</th>" +
+			        "</tr>";
 
 			for (var i = 0; i < subscriptions.length; i++) {
 				var subscription = subscriptions[i];
-				message += "<tr>" +
-				           "<td>" + (i + 1) + "</td>" +
-				           "<td>" + formatPrint( subscription.subscriber, elem ) + "</td>" +
-				           "<td>" + formatPrint( subscription.publisher, elem ) + "</td>" +
-				           "<td>" + formatPrint( subscription.eventTypes ) + "</td>" +
-				           "<td>" + formatPrint( subscription.handler ) + "</td>" +
-				           "<td>" + formatPrint( subscription.options ) + "</td>" +
-				           "<td>" + formatPrint( subscription.delegate ) + "</td>" +
-				           "</tr>";
+				html += "<tr>" +
+				        "<td>" + (i + 1) + "</td>" +
+				        "<td>" + formatParty( subscription.subscriber, elem ) + "</td>" +
+				        "<td>" + formatParty( subscription.publisher, elem ) + "</td>" +
+				        "<td>" + formatPrint( subscription.eventTypes ) + "</td>" +
+				        "<td>" + formatPrint( subscription.handler ) + "</td>" +
+				        "<td>" + formatPrint( subscription.options ) + "</td>" +
+				        "<td>" + formatPrint( subscription.delegate ) + "</td>" +
+				        "</tr>";
 			}
 		}
 
-		message += "</table>";
-		hm.log( message );
+		html += "</table>";
+		hm.log( html );
 
 	};
 
-	function formatPrint ( obj, elem ) {
-		if (!obj) {
-			return "";
-		} else if (isString( obj )) {
-			return obj;
-		}
+	function formatParty( obj, elem ) {
+
 		if (obj === elem) {
 			return "element";
-		} else if (obj.nodeType) {
-			return util.encodeHtml( obj.outerHTML ).substr( 0, 40 ) + "...";
+		}
+
+		if (obj.nodeType) {
+			return util.encodeHtml( obj.outerHTML ).substr( 0, 100 ) + "...";
+		}
+
+		if (isString( obj )) {
+			if (obj.startsWith( "$" )) {
+				return "$('" + obj.substr( 1 ) + "')";
+			} else {
+				if (elem) {
+					return "hm('" + util.toLogicalPath( obj ) + "')";
+				} else {
+					return "'" + util.toLogicalPath( obj ) + "'";
+				}
+			}
+		}
+
+	}
+
+	function formatPrint( obj ) {
+
+		if (isUndefined( obj )) {
+			return "";
 		} else if (isFunction( obj )) {
-			return util.encodeHtml( obj + "" ).substr( 0, 40 ) + "...";
+
+			return util.encodeHtml( obj + "" ).substr( 0, 100 ) + "...";
+
+		} else if (isObject( obj )) {
+
+			var rtn = "<pre>{";
+			var temp = "";
+			for (var key in obj) {
+				var value = obj[key];
+				if (!isUndefined( value )) {
+					temp += "\n " + key + ":";
+					if (isString( value )) {
+						temp += "'" + util.encodeHtml( value ) + "',"
+					} else {
+						temp += util.encodeHtml( value ) + ","
+					}
+				}
+
+			}
+
+			if (temp.length != 0) {
+				temp = temp.substr( 0, temp.length - 1 );
+			}
+			rtn += temp;
+
+			rtn += "\n}</pre>";
+			rtn = rtn.replace( /\t/g, " " );
+			return rtn;
 		} else {
 			return JSON.stringify( obj );
 		}
 	}
 
-	hm.groups.debug = function( elem, path, group, options ) {
-		group.debug = true;
-	};
+	hm.binding( "debug", function( elem, path, context, options ) {
+		context.debug = true;
+	} );
 
-	hm.printGroup = function( elem ) {
-		if (isString(elem)) {
-			elem = $("<div></div>" ).attr(hm.options.subsAttr, elem)[0];
+	hm.printBinding = function( elem ) {
+		if (isString( elem )) {
+			elem = $( "<div></div>" ).attr( hm.options.subsAttr, elem )[0];
 		} else if (elem.jquery) {
 			elem = elem[0];
 		}
 
-		(new hm.Group( elem )).print();
+		(new hm.Binding( elem )).print();
+	};
+
+	//me can be a DOM element, or it can a string path
+	hm.printSubscriptions = function( me, subscriptions, type ) {
+		if (!subscriptions.length) {
+			hm.log( "no subscription" );
+			return;
+		}
+
+		var subsFromMe, subsToMe, i, subscription;
+		if (type == "fromMe") {
+			subsFromMe = subscriptions;
+		} else if (type == "toMe") {
+
+			subsToMe = subscriptions;
+
+		} else {
+
+			subsFromMe = $( subscriptions ).filter(function( index, item ) {
+				return item.subscriber == me;
+			} ).get();
+
+			subsToMe = $( subscriptions ).filter(function( index, item ) {
+				return item.publisher == me;
+			} ).get();
+
+		}
+
+		/*return getSubscriptionsBy( subscriberOrPublisher, function match( item, target ) {
+		 return item.subscriber == target || item.publisher == target;
+		 } );*/
+
+		var myDescription;
+
+		if (isString( me ) || (me instanceof  hm)) {
+
+			myDescription = "hm('" + util.toLogicalPath( me ) + "')";
+
+		} else {
+
+			myDescription = formatParty( me );
+
+		}
+
+		var html = "<table border='1' cellpadding='6' style='border-collapse: collapse; width:100%;'>";
+
+		if (subsFromMe && subsFromMe.length) {
+			html += "<tr><th colspan='6'><b>Subscriber: </b> " + myDescription + "</th></tr>";
+			html += "<tr><th></th><th>Publisher:</th><th>events</th><th>workflow</th><th>options</th><th>delegate</th></th>";
+
+			for (i = 0; i < subsFromMe.length; i++) {
+				subscription = subsFromMe[i];
+				html += "<tr>" +
+				        "<td>" + (i + 1) + "</td>" +
+				        "<td>" + formatParty( subscription.publisher ) + "</td>" +
+				        "<td>" + formatPrint( subscription.eventTypes ) + "</td>" +
+				        "<td>" + formatPrint( subscription.workflow ) + "</td>" +
+				        "<td>" + formatPrint( subscription.options ) + "</td>" +
+				        "<td>" + formatPrint( subscription.delegate ) + "</td>" +
+				        "</tr>";
+			}
+		}
+
+		if (subsToMe && subsToMe.length) {
+			html += "<tr><th colspan='6'>Publisher: " + myDescription + "</th></tr>";
+			html += "<tr><th></th><th>Subscriber:</th><th>events</th><th>workflow</th><th>options</th><th>delegate</th></tr>";
+
+			for (i = 0; i < subsToMe.length; i++) {
+				subscription = subsToMe[i];
+				html += "<tr>" +
+				        "<td>" + (i + 1) + "</td>" +
+				        "<td>" + formatParty( subscription.subscriber ) + "</td>" +
+				        "<td>" + formatPrint( subscription.eventTypes ) + "</td>" +
+				        "<td>" + formatPrint( subscription.workflow ) + "</td>" +
+				        "<td>" + formatPrint( subscription.options ) + "</td>" +
+				        "<td>" + formatPrint( subscription.delegate ) + "</td>" +
+				        "</tr>";
+			}
+		}
+
+		html += "</table>";
+		hm.log( html );
+
 	};
 
 //#end_debug//
+
+	//start of loader core.js
+	var urlStore = {},
+		promiseStore = {},
+		dependencyStore = {},
+		loaderDefinitionStore = {},
+		loaderStore = {},
+		dummyLink = document.createElement( "a" ),
+		rComma = /,/,
+		rSpace = /\s+/g,
+		rQuery = /\?/,
+		rFileExt = /\.(\w+)$/,
+		rFileName = /(.+)\.\w+$/,
+		fileExtension,
+		fileName,
+		commonLoaderMethods,
+		commonLoadFilters,
+		depend,
+	//match "http://domain.com" , "/jkj"
+		rAbsoluteUrl = /^http[s]?:\/\/|^\//,
+		rUrlParts = /^([\w\+\.\-]+:)(?:\/\/([^\/?#:]*)(?::(\d+))?)?/,
+		ajaxLocParts = rUrlParts.exec( location.href.toLowerCase() ) || [],
+		hashValue = "",
+		hashKey = "v",
+		rVersionHash,
+		loadCallbacks = [],
+		failCallbacks = [],
+		unloadCallbacks = [],
+
+		loaderFinders,
+		fileExtToLoaderMapper = {},
+		baseUrl = "",
+
+	//support the following overloading
+	//hm.loader("app"); //retrieve loader
+	//hm.loader("app", definition); //create a loader from scratch
+	//hm.loader("app", "js", definition); //create a loader by extending a new loader
+		_loader = hm.loader = function( loaderName, baseLoaderName, loaderDefinition ) {
+
+
+			//retrieve the loader by name
+			if (isUndefined( baseLoaderName )) {
+
+				return loaderName ? loaderStore[loaderName] : loaderStore;
+
+			}
+
+			//create a new loader
+			if (!isString( baseLoaderName )) {
+				loaderDefinition = baseLoaderName;
+				baseLoaderName = null;
+			}
+
+			loaderDefinition = loaderDefinitionStore[loaderName] = $.extend(
+				true,
+				{},
+				loaderDefinitionStore[baseLoaderName],
+				loaderDefinition );
+
+			var loader = $.extend( true, {}, loaderDefinition );
+
+			$.each( "load,unload,url,depend".split( "," ), function( index, methodName ) {
+				var commonMethodName = loader[methodName];
+				if (isString( commonMethodName )) {
+					var loaderMethod = commonLoaderMethods[methodName][commonMethodName];
+					if (loaderMethod) {
+						loader[methodName] = loaderMethod;
+					}
+				}
+			} );
+
+			if ($.isPlainObject( loader.load )) {
+				//it is a pipeline, but not a function
+				loader.load = convertLoadFiltersToLoadMethod( loader.load );
+
+			}
+
+			if (!$.isFunction( loader.load )) {
+				throw "missing load function from loader";
+			}
+
+			loaderStore[loaderName] = $.extend( {}, loaderStore[baseLoaderName], loader );
+		};
+
+	function invokeCallbacks( callbacks ) {
+		return function() {
+			for (var i = 0; i < callbacks.length; i++) {
+				callbacks[i].apply( this, arguments );
+			}
+		};
+	}
+
+	var invokeFailCallbacks = invokeCallbacks( failCallbacks ),
+		invokeLoadCallbacks = invokeCallbacks( loadCallbacks ),
+		invokeUnloadCallbacks = invokeCallbacks( unloadCallbacks );
+
+	function loadAssets( assetIds, inferDependenciesFromIdOrder ) {
+
+		if (isString( assetIds )) {
+
+			if (inferDependenciesFromIdOrder) {
+				var i = 1,
+					keys = splitByComma( assetIds );
+
+				//create dependency in order
+				while (i < keys.length) {
+					depend( keys[i], keys[i - 1] );
+					i++;
+				}
+				assetIds = keys[keys.length - 1];
+			}
+
+			return loadAssetsInParallel( assetIds );
+
+		} else if (isArray( assetIds )) {
+
+			//if it is assetIdArray, load one after previous is fully loaded
+			return loadAssetsInSerial( assetIds );
+
+		}
+		throw "resource parameter should be an array or string";
+	}
+
+	//resourceString is like "a.js, b.css, c.tmpl"
+	function loadAssetsInParallel( assetIdString ) {
+		var promises = [],
+			rtnPromise,
+			resourceArray = splitByComma( assetIdString );
+
+		if (resourceArray.length === 1) {
+			rtnPromise = loadStandaloneAsset( resourceArray[0] );
+		}
+		else {
+			for (var i = 0; i < resourceArray.length; i++) {
+				promises.push( loadStandaloneAsset( resourceArray[i] ) );
+			}
+			rtnPromise = $.when.apply( $, promises );
+		}
+
+		return augmentPromise( rtnPromise ).fail( function() {
+			_loader.unload( assetIdString );
+		} );
+	}
+
+	//resources can be "a.js, b.css, c.tmpl"
+	//it can be ["a.js", "b.css", "c.tmpl"]
+	//or ["a.js,b.css", ["c.tmpl", "d.tmpl"], "e.css"] and so on
+	//it serial load the top level resource unit, within each resource unit, use smart
+	//loader
+	function loadAssetsInSerial( assetIdArray ) {
+		var rtnPromise,
+			i,
+			toReleaseResource = [],
+			currentResourceStringOrArray,
+			sharedState = {
+				ok: true
+			};
+
+		for (i = 0; i < assetIdArray.length; i++) {
+			currentResourceStringOrArray = assetIdArray[i];
+			toReleaseResource.push( currentResourceStringOrArray );
+
+			if (i === 0) {
+
+				rtnPromise = loadAssets( currentResourceStringOrArray )
+					.fail( makeReleaseFn( currentResourceStringOrArray, sharedState ) );
+
+			} else {
+
+				rtnPromise = rtnPromise.nextLoad( currentResourceStringOrArray )
+					.fail( makeReleaseFn( toReleaseResource.slice(), sharedState ) );
+			}
+		}
+
+		return augmentPromise( rtnPromise );
+	}
+
+	function makeReleaseFn( resourceStringOrArray, sharedState ) {
+		return function() {
+			if (sharedState.ok) {
+				_loader.unload( resourceStringOrArray );
+				sharedState.ok = false;
+			}
+		};
+	}
+
+	function loadStandaloneAsset( assetId ) {
+		var loader = findLoader( assetId );
+		if (loader) {
+
+			return loadStandaloneAssetWithLoader( assetId, loader );
+
+		} else {
+
+			//#debug
+			_loader.debug.log( "try to load missing loader " + fileExtension( assetId ) + ".loader" );
+			//#end_debug
+
+			return _loader.load( fileExtension( assetId ) + ".loader" ).nextLoad( assetId );
+		}
+	}
+
+	function loadStandaloneAssetWithLoader( assetId, loader ) {
+
+		//#debug
+		_loader.debug.log( "try to load " + assetId + " @ " + _loader.url( assetId ) );
+		//#end_debug
+
+		var promise = accessPromise( assetId );
+
+		if (!promise) {
+
+			//#debug
+			_loader.debug.log( "  loading " + assetId + " @ " + _loader.url( assetId ) );
+			//#end_debug
+
+			promise = loader.load( assetId );
+
+			if (!loader.noRefCount) {
+				//add the promise to cache,
+				//in the future, it can be retrieved by accessPromise(assetId)
+				accessPromise( assetId, promise );
+			}
+		}
+		//#debug
+		else {
+			_loader.debug.log( "  found loaded asset " + assetId + " @ " + _loader.url( assetId ) );
+		}
+		//#end_debug
+
+		//preload asset will never be counted for reference
+		//as we don't want that to be unloaded
+		if (promise.refCount !== "staticLoaded") {
+			promise.refCount = promise.refCount ? promise.refCount + 1 : 1;
+		}
+		return promise;
+	}
+
+	//retrieve promise by assetId or
+	//set promise by assetId
+	function accessPromise( assetId, promise ) {
+		if (assetId === undefined) {
+			return promiseStore;
+		} else {
+			if (promise === undefined) {
+				if (arguments.length === 1) {
+					return promiseStore[assetId];
+				} else {
+					delete promiseStore[assetId];
+				}
+			} else {
+				promiseStore[assetId] = promise;
+				return promise;
+			}
+		}
+	}
+
+	//add a promise.nextLoad method dynamically, so that it can
+	//be used load other asset when current promise finished
+	//the nextLoad method is a smartLoad method, use the same way in which
+	//you call loader
+	function augmentPromise( promise ) {
+		var nextDefer = $.Deferred();
+
+		//nextLoad method load after the current currentPromise is done
+		promise.nextLoad = function( assetId ) {
+			var nextLoadArguments = slice.call( arguments );
+			promise.then(
+				function() {
+					_loader.load.apply( null, nextLoadArguments ).then(
+						function() {
+							nextDefer.resolve.apply( nextDefer, slice.call( arguments ) );
+						},
+						function() {
+							nextDefer.reject( assetId );
+						} );
+				},
+				function() {
+					nextDefer.reject( assetId );
+				} );
+
+			return augmentPromise( nextDefer.promise() );
+		};
+
+		promise.andLoad = function() {
+			var currentPromise = _loader.apply( null, arguments );
+			return augmentPromise( $.when( currentPromise, promise ) );
+		};
+
+		return promise;
+	}
+
+	function splitByComma( text ) {
+		return text.replace( rSpace, "" ).split( rComma );
+	}
+
+	function isCrossDomain( url ) {
+		var parts = rUrlParts.exec( url.toLowerCase() );
+		return !!( parts &&
+		           ( parts[ 1 ] != ajaxLocParts[ 1 ] || parts[ 2 ] != ajaxLocParts[ 2 ] ||
+		             ( parts[ 3 ] || ( parts[ 1 ] === "http:" ? 80 : 443 ) ) !=
+		             ( ajaxLocParts[ 3 ] || ( ajaxLocParts[ 1 ] === "http:" ? 80 : 443 ) ) )
+			);
+	}
+
+	function fullUrl( urlRelativeToBaseUrl ) {
+
+		dummyLink.href = rAbsoluteUrl.test( urlRelativeToBaseUrl ) ? urlRelativeToBaseUrl :
+			baseUrl + urlRelativeToBaseUrl;
+
+		return isCrossDomain( urlRelativeToBaseUrl ) ? dummyLink.href : addHash( dummyLink.href );
+	}
+
+	function convertLoadFiltersToLoadMethod( loadFilters ) {
+
+		for (var key in loadFilters) {
+			attachFilter( loadFilters, key );
+		}
+
+		var staticLoaded = loadFilters.staticLoaded || commonLoadFilters.staticLoaded.returnFalse,
+			getSource = loadFilters.getSource || commonLoadFilters.getSource.getTextByAjax,
+			compile = loadFilters.compile === undefined ? commonLoadFilters.compile.globalEval : loadFilters.compile,
+			crossSiteLoad = loadFilters.crossSiteLoad || commonLoadFilters.crossSiteLoad.getScript,
+			buildDependencies = loadFilters.buildDependencies || commonLoadFilters.buildDependencies.parseDependTag,
+			buildUnload = loadFilters.buildUnload || commonLoadFilters.buildUnload.parseUnloadTag;
+
+		if (!compile && !crossSiteLoad) {
+			throw "loader must implement at least one of compile, crossSiteLoad";
+		}
+
+		return function( assetId ) {
+			var defer = $.Deferred(),
+				promise = defer.promise(),
+				url;
+
+			if (staticLoaded( assetId )) {
+
+				//#debug
+				_loader.debug.log( "    bypass staticLoadeded asset " + assetId + " @ " + _loader.url( assetId ) );
+				//#end_debug
+				promise.refCount = "staticLoaded";
+				defer.resolve();
+
+			} else {
+				url = _loader.url( assetId );
+				if (!compile || loadFilters.byPassGetSource || isCrossDomain( url )) {
+
+					if (!crossSiteLoad) {
+						throw "loader does not support cross domain loading";
+					}
+					//#debug
+					_loader.debug.log( "    cross-site fetch " + assetId + " @ " + url );
+					//#end_debug
+
+					return crossSiteLoad( assetId );
+
+				} else {
+
+					//#debug
+					_loader.debug.log( "    local fetch " + assetId + " @ " + url );
+					//#end_debug
+
+					getSource( assetId ).then(
+						function( sourceCode ) {
+
+							//#debug
+							_loader.debug.log( "      parsing content of " + assetId );
+							//#end_debug
+
+							if (buildUnload) {
+
+								//#debug
+								_loader.debug.log( "        buildUnload for " + assetId );
+								//#end_debug
+
+								var unload = buildUnload( sourceCode, assetId );
+
+								if (unload) {
+									//#debug
+									_loader.debug.log( "          unload created for " + assetId );
+									//#end_debug
+
+									accessPromise( assetId ).unload = unload;
+								}
+
+							}
+
+							if (buildDependencies) {
+
+								//#debug
+								_loader.debug.log( "        buildDependencies for " + assetId );
+								//#end_debug
+
+								var embeddedDependencies = buildDependencies( assetId, sourceCode );
+								if (embeddedDependencies) {
+									//#debug
+									_loader.debug.log( "          dependencies found for " + assetId + ":" + embeddedDependencies );
+									//#end_debug
+									depend( assetId, embeddedDependencies );
+								}
+							}
+
+							var runcompile = function() {
+
+								//#debug
+								_loader.debug.log( "      compiling " + assetId + " @ " + url );
+								//#end_debug
+
+								var result = compile && compile( assetId, sourceCode );
+								//delay defer.resolve a for while to wait for the compile result
+								//to take effect, if compile is $.globalEval
+								setTimeout( function() {
+									if (!defer.dontResolve) {
+										defer.resolve( result );
+										delete promise.defer;
+									}
+								}, 5 );
+							};
+
+							var dependencies = depend( assetId );
+
+							//load dependencies because it combines static dependentModuleString
+							//and dynamic dependentModuleString
+							if (dependencies) {
+								_loader.load( dependencies ).then( runcompile, function() {
+									defer.reject( assetId );
+									delete promise.defer;
+								} );
+							} else {
+								runcompile();
+							}
+
+						},
+						function() {
+							defer.reject( assetId );
+							delete promise.defer;
+						}
+					);
+				}
+				if (!isResolved( defer )) {
+					promise.defer = defer;
+				}
+			}
+			return promise;
+		};
+	}
+
+	var isResolved = $.Deferred().isResolved ? function( promise ) {
+		return promise.isResolved();
+	} : function( promise ) {
+		return promise.state() == "resolved";
+	};
+
+	function addHash( url ) {
+		url = removeHash( url );
+		return hashValue ?
+			url + ( rQuery.test( url ) ? "&" : "?" ) + hashKey + "=" + hashValue :
+			url;
+	}
+
+	function removeHash( url ) {
+		if (hashValue === "") {
+			return url;
+		} else {
+			return url.replace( rVersionHash, "" );
+		}
+	}
+
+	$.extend( _loader, {
+
+		//for parallel loading
+		//
+		// loader.load(assetIdString)
+		// loader.load(assetIdString, useImplicitDependencies)
+		// loader.load(holdReady, assetIdString)
+		// loader.load(holdReady, assetIdString, useImplicitDependencies)
+		//
+		//for serial loading and mixed serial/parallel loading loader
+		//
+		// loader.load(assetIdArray)
+		// loader.load(holdReady assetIdArray)
+		//
+		load: function( holdReady, assetIds, inferDependenciesFromIdOrder ) {
+			var rtnPromise;
+			if (!isBoolean( holdReady )) {
+				//by default it is false
+				inferDependenciesFromIdOrder = assetIds;
+				assetIds = holdReady;
+				holdReady = false;
+			}
+			if (!assetIds) {
+				return;
+			}
+
+			holdReady = holdReady && !$.isReady;
+
+			rtnPromise = loadAssets( assetIds, inferDependenciesFromIdOrder );
+
+			if (holdReady) {
+
+				$.holdReady( true );
+
+				rtnPromise.done( function() {
+					$.holdReady();
+					//same as the following
+					//$.holdReady( false );
+					//$.ready( true );
+				} );
+			}
+
+			return rtnPromise.done( invokeLoadCallbacks ).fail( invokeFailCallbacks );
+		},
+		//unload(loadCallback) or unload(unloadCallback, remove=true)
+		//unload(assetIdString)
+		//unload(assetIdArray)
+		unload: function( assetIds, remove ) {
+			var i,
+				assetId,
+				dependencies,
+				promise;
+
+			if ($.isFunction( assetIds )) {
+				if (remove) {
+					unloadCallbacks.remove( assetIds );
+				} else {
+					unloadCallbacks.push( assetIds );
+				}
+
+			} else {
+
+				if (isString( assetIds )) {
+					assetIds = splitByComma( assetIds );
+				}
+
+				//if there is only one module
+				if (assetIds.length != 1) {
+
+					for (i = 0; i < assetIds.length; i++) {
+						_loader.unload( assetIds[i] );
+					}
+
+				} else {
+
+					//unload serveral modules
+					assetId = assetIds[0];
+					promise = accessPromise( assetId );
+
+					//make sure it will not throw exception when
+					// unloading some module which is not in page
+					if (promise && promise.refCount != "staticLoaded") {
+
+						if (--promise.refCount === 0 || remove) {
+							var unload = promise.unload || findLoader( assetId ).unload;
+
+							if (unload) {
+								//#debug
+								_loader.debug.log( "unloading " + assetId + " @ " + _loader.url( assetId ) );
+								//#end_debug
+								unload( assetId );
+							}
+
+							//delete the promises associated with the module
+							accessPromise( assetId, undefined );
+							dependencies = depend( assetId );
+							if (dependencies) {
+								_loader.unload( dependencies, remove );
+								depend( assetId, undefined );
+							}
+
+						}
+						invokeUnloadCallbacks();
+					}
+				}
+			}
+		},
+
+		//register a url for module key
+		//or get the url of module key
+		url: function( assetId, url ) {
+			if (isObject( assetId )) {
+				for (var k in assetId) {
+					_loader.url( k, assetId[k] );
+				}
+				return;
+			}
+
+			//if resource's url is not in cache
+			//and user is trying to get it
+			if (url === undefined) {
+
+				if (arguments.length == 1) {
+
+					if (urlStore[assetId]) {
+						return urlStore[assetId];
+					}
+
+					var loader = findLoader( assetId );
+
+					return fullUrl(
+						loader && loader.url ? loader.url( assetId ) :
+							loader && loader.fileExt ? fileName( assetId ) + "." + loader.fileExt :
+								assetId
+					);
+
+				} else {
+
+					//allow access(key, undefined)
+					//to delete the key from storage
+					delete urlStore[assetId];
+				}
+
+			} else {
+				//user explicit register an url
+				var oldUrl = _loader.url( assetId );
+				var newUrl = fullUrl( url );
+
+				if (oldUrl != newUrl) {
+					var oldPromise = accessPromise( assetId );
+					if (oldPromise && isResolved( oldPromise )) {
+						reload( assetId, function() {
+							urlStore[assetId] = newUrl;
+						} );
+					} else {
+						urlStore[assetId] = newUrl;
+					}
+				}
+			}
+		},
+
+		// members to configure loader
+
+		//add dependency to a resource key
+		//or get the dependency of a resource key
+		//user can set dependentResourceString manually , which is called static
+		//dependentResourceString
+		// or can use loader.depend method to return dependentResourceString which is called
+		//dynamic dependentResourceString,
+		//or we can combine them together
+		depend: depend = function( assetId, dependencies ) {
+
+			if (isObject( assetId )) {
+				for (var key in assetId) {
+					depend( key, assetId[key] );
+				}
+				return;
+			}
+
+			if (dependencies === undefined) {
+				//get dependencies
+				if (arguments.length == 1) {
+					var staticDependencies = dependencyStore[assetId];
+					var loader = findLoader( assetId );
+
+					if (loader && loader.depend) {
+						var dynamicDependencies = loader.depend( assetId );
+						if (dynamicDependencies && staticDependencies) {
+							return dynamicDependencies + "," + staticDependencies;
+						} else if (dynamicDependencies) {
+							return dynamicDependencies;
+						} else {
+							return staticDependencies;
+						}
+					} else {
+						return staticDependencies;
+					}
+
+				} else {
+					//delete dependencies
+					delete dependencyStore[assetId];
+				}
+
+			} else if (dependencies === true) {
+				//for debugging purpuse loader.depend(assetId, true)
+				var assetIds = depend( assetId );
+				assetIds = assetIds && splitByComma( assetIds );
+				if (assetIds) {
+					var rtn = [];
+					for (var i = 0; i < assetIds.length; i++) {
+						if (_loader.fileExt( assetIds[i] ) !== "module") {
+							rtn.pushUnique( _loader.url( assetIds[i] ) );
+						}
+						rtn.merge( depend( assetIds[i], true ) );
+					}
+					return rtn;
+				}
+
+			} else {
+				var newStaticDependencies = getNewStaticDependencies( assetId, dependencies );
+				var oldStaticDependencies = dependencyStore[assetId];
+
+				if (isDependenciesDifferent( newStaticDependencies, oldStaticDependencies )) {
+
+					var oldPromise = accessPromise( assetId );
+					if (oldStaticDependencies && oldPromise && isResolved( oldPromise )) {
+						reload( assetId, function() {
+							dependencyStore[assetId] = newStaticDependencies;
+						} );
+					} else {
+						dependencyStore[assetId] = newStaticDependencies;
+					}
+				}
+			}
+		},
+
+		//the url relative to the current window location, for example "js/"
+		//the suffix "/" is important
+		//it is used to calculate the real relative url of resource key
+		baseUrl: function( urlRelativeToPage ) {
+			if (isUndefined( urlRelativeToPage )) {
+				return baseUrl;
+			}
+			baseUrl = urlRelativeToPage.endsWith( "/" ) ? urlRelativeToPage : urlRelativeToPage + "/";
+		},
+
+		//loader.hash(true) --> set a timestamp as hash ?v=2347483748
+		//loader.hash(1,x) --> ?x=1
+		//loader.hash(1) --> ?v=1
+		hash: function( value, key ) {
+			if (arguments.length) {
+				hashValue = value === true ? $.now() : value;
+				hashKey = key !== undefined ? key : (hashKey || "v");
+				rVersionHash = new RegExp( "[?&]" + hashKey + "=[^&]*" );
+			}
+			return hashValue === "" ? "" : hashKey + "=" + hashValue;
+		},
+
+		//support method load, unload, url, depend
+		methods: commonLoaderMethods = {
+
+			load: {
+				cacheImage: function( assetId ) {
+					var defer = $.Deferred(),
+						promise = defer.promise(),
+						url = _loader.url( assetId );
+
+					var img = new Image();
+					img = new Image();
+					img.onload = function() {
+						defer.resolve( url );
+					};
+					img.onerror = function() {
+						defer.reject( url );
+					};
+					img.src = url;
+					return promise;
+				}
+
+			},
+			unload: {
+				removeCssLinkTag: function( assetId ) {
+					var url = fullUrl( _loader.url( assetId ) );
+					$( "link" ).filter(
+						function() {
+							return this.href === url && $( this ).attr( 'loadedByloader' );
+						} ).remove();
+				}
+			},
+			url: {
+				assetId: function( assetId ) {
+					return assetId;
+				},
+				//this url expect module is put into its folder under baseUrl
+				//if the loader name is "app", we should put the resource file into
+				//baseUrl/app folder
+				folder: function( assetId ) {
+
+					var fileExt = findLoader( assetId ).fileExt,
+						fileName = fileExt ? _loader.fileName( assetId ) + "." + fileExt :
+							assetId,
+						loaderName = _loader.fileExt( assetId );
+
+					return loaderName + "/" + fileName;
+				}
+			},
+
+			depend: {
+				//name: function (assetId) {
+				// return a assetIdString or assetIdArray
+				// return "a.html, b.js"
+				// }
+			}
+		},
+
+		loadFilters: commonLoadFilters = {
+
+			staticLoaded: {
+				//default staticLoaded filter
+				returnFalse: function() {
+					return false;
+				},
+
+				hasScriptTag: function( assetId ) {
+					return !!($( "script" ).filter(
+						function() {
+							return removeHash( this.src ) === removeHash( _loader.url( assetId ) );
+						} ).length);
+				}
+
+			},
+
+			getSource: {
+				//this is default getSource filter
+				getTextByAjax: function( assetId ) {
+					return $.ajax( {
+						url: _loader.url( assetId ),
+						dataType: "text",
+						cache: true
+					} );
+				}
+			},
+
+			compile: {
+				globalEval: function( assetId, sourceCode ) {
+					return $.globalEval( sourceCode );
+				},
+				localEval: function( assetId, sourceCode ) {
+					return eval( sourceCode );
+				}
+			},
+
+			crossSiteLoad: {
+				//can not use $.getScript directly, as loader.resolve
+				getScript: function( assetId ) {
+					var defer = $.Deferred(),
+						promise = defer.promise();
+
+					promise.defer = defer;
+
+					$.getScript( _loader.url( assetId ) ).then(
+						function() {
+							setTimeout( function() {
+								if (!defer.dontResolve) {
+									defer.resolve();
+									delete promise.defer;
+								}
+							}, 5 );
+						},
+						function() {
+							defer.reject();
+							delete promise.defer;
+						} );
+
+					return promise;
+				}
+
+
+			},
+
+			buildUnload: {
+				parseUnloadTag: function( sourceCode ) {
+					var unloadStatements = runloadStatement.exec( sourceCode );
+					return unloadStatements &&
+					       unloadStatements[1] &&
+					       new Function( unloadStatements[1] );
+				}
+			},
+
+			buildDependencies: {
+				parseDependTag: function( assetId, sourceCode ) {
+					var dependencies = rDependHeader.exec( sourceCode );
+					return (dependencies && dependencies[1] ) || null;
+				}
+			}
+		},
+
+		//find the name of the loader based on assetId
+		//the first loader is use the extension as the loader name
+		//however you can add your own loader
+		finders: loaderFinders = [
+			//find loader by by file extensions directly
+			function( assetId ) {
+				return fileExtension( assetId );
+			},
+			//find loader by by file extensions using mapper
+			function( assetId ) {
+				var extension = fileExtension( assetId );
+				var mappedType = fileExtToLoaderMapper[extension];
+				if (mappedType) {
+					return mappedType;
+				}
+			}
+		],
+
+		//if you want to load a file "*.jpg", which should be loaded
+		//with "*.img" loader you should specify loader.loader.mapFiles("img", "jpg");
+		mapFileExtToLoader: function( fileExtensions, loaderName ) {
+			fileExtensions = splitByComma( fileExtensions );
+			for (var i = 0; i < fileExtensions.length; i++) {
+				fileExtToLoaderMapper[fileExtensions[i]] = loaderName;
+			}
+		},
+
+		//if assetId is xyz.js
+		//then fileExt is "js"
+		fileExt: fileExtension = function( assetId ) {
+			return rFileExt.exec( assetId )[1];
+		},
+
+		//if assetId is "a.b.c", then file name is "a.b"
+		fileName: fileName = function( assetId ) {
+			return rFileName.exec( assetId )[1];
+		},
+
+		//define a module with an asset id
+		//dependencies is an asset expression, it is optional
+		//define the module in the load method
+		define: function( assetId, dependencies, defineModule, unload ) {
+
+			if ($.isFunction( dependencies )) {
+				unload = defineModule;
+				defineModule = dependencies;
+				dependencies = null;
+			}
+
+			var defer, promise = accessPromise( assetId );
+
+			if (!promise) {
+				//this is the case when loader.define is call in a static loaded js
+				defer = $.Deferred();
+				promise = defer.promise();
+				promise.defer = defer;
+				accessPromise( assetId, promise );
+			} else {
+				defer = promise.defer;
+			}
+
+			//use dontReoslve flag telling the consumer don't resolve it
+			//as it will be taken care inside importCode,
+			promise.defer.dontResolve = true;
+
+			var runModuleCode = function( result ) {
+				delete promise.defer;
+				promise.unload = unload;
+				defer && defer.resolve( defineModule( result ) );
+			};
+
+			if (dependencies) {
+				depend( assetId, dependencies );
+				//load the dependencies first
+				_loader.load( dependencies ).done( runModuleCode );
+
+			} else {
+
+				runModuleCode();
+			}
+
+			return promise;
+		},
+
+		done: function( fn, remove ) {
+			if (remove) {
+				loadCallbacks.remove( fn );
+			} else {
+				loadCallbacks.push( fn );
+			}
+		},
+
+		fail: function( fn, remove ) {
+			if (remove) {
+				failCallbacks.remove( fn );
+			} else {
+				failCallbacks.push( fn );
+			}
+		},
+
+		defaultLoader: "js"
+
+	} );
+
+	function reload( assetId, change ) {
+
+		var oldPromiseCache = $.extend( true, {}, promiseStore );
+		_loader.unload( assetId, true );
+		change && change();
+		return _loader.load( assetId ).done( function() {
+			for (var key in oldPromiseCache) {
+				if (promiseStore[key] && oldPromiseCache[key]) {
+					promiseStore[key].refCount = oldPromiseCache[key].refCount;
+					promiseStore[key].url = oldPromiseCache[key].url;
+					promiseStore[key].assetId = oldPromiseCache[key].assetId;
+				}
+			}
+		} );
+	}
+
+	function getNewStaticDependencies( assetId, dependenciesToSet ) {
+		var rtn,
+			loader = findLoader( assetId ),
+			dynamicDependencies = loader && loader.depend && loader.depend( assetId );
+
+		if (dynamicDependencies) {
+			rtn = [];
+			dynamicDependencies = splitByComma( dynamicDependencies );
+			dependenciesToSet = splitByComma( dependenciesToSet );
+			for (var i = 0; i < dependenciesToSet.length; i++) {
+				if (!dynamicDependencies.contains( dependenciesToSet[i] )) {
+					rtn.push( dependenciesToSet[i] );
+				}
+			}
+			return rtn.length ? rtn.join() : null;
+		} else {
+			return dependenciesToSet;
+		}
+	}
+
+	function isDependenciesDifferent( dependencies1, dependencies2 ) {
+		if ((dependencies1 && !dependencies2) ||
+		    dependencies2 && !dependencies1) {
+			return true;
+		} else if (!dependencies1 && !dependencies2) {
+			return false;
+		}
+
+		dependencies1 = splitByComma( dependencies1 ).sort();
+		dependencies2 = splitByComma( dependencies2 ).sort();
+		if (dependencies1.length != dependencies2.length) {
+			return true;
+		}
+
+		for (var i = 0; i < dependencies1.length; i++) {
+			if (dependencies1[i] != dependencies2[i]) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	function findLoader( assetId ) {
+		var loaderName, i;
+		for (i = loaderFinders.length - 1; i >= 0; i--) {
+			loaderName = loaderFinders[i]( assetId );
+			if (loaderName) {
+				break;
+			}
+		}
+		loaderName = loaderName || _loader.defaultLoader;
+		return loaderStore[loaderName];
+	}
+
+	function attachFilter( filters, filterName ) {
+		if (isString( filters[filterName] )) {
+			filters[filterName] = commonLoadFilters[filterName][filters[filterName]];
+		}
+	}
+
+	//#debug
+	_loader.debug = {
+		fullUrl: fullUrl,
+		urlStore: urlStore,
+		promiseStore: promiseStore,
+		loaderStore: loaderStore,
+		findLoader: findLoader,
+		addHash: addHash,
+		removeHash: removeHash,
+		log: function( msg ) {
+			var console = window.console;
+			console && console.log && console.log( msg );
+		},
+
+		//this is for debugging purpose only
+		moduleCounters: accessPromise,
+
+		getLoaderByName: function( loaderName ) {
+			return loaderName ? loaderStore[loaderName] : loaderStore;
+		}
+	};
+	//#end_debug
+
+	var
+
+	//if yo have code like the following in javascript,
+	//the part delete window.depend2 will be extracted
+	// <@unload>
+	//delete window.depend2;
+	//</@unload>
+
+		runloadStatement = /<@unload>([\w\W]+?)<\/@unload>/i,
+
+	//match string "ref2, ref1" in
+	// <@depend>
+	//ref2, ref1
+	//<@depend>
+		rDependHeader = /<@depend>([\w\W]+?)<\/@depend>/i;
+
+	//create a load function
+	function resolveDependencies( actionAfterDependenciesResolved ) {
+		return function( assetId ) {
+			var defer = $.Deferred(),
+				dependentResourceString = _loader.depend( assetId );
+
+			if (dependentResourceString) {
+				_loader.load( dependentResourceString ).done( function() {
+					defer.resolve( assetId, actionAfterDependenciesResolved( assetId ) );
+				} );
+			} else {
+				defer.resolve( assetId, actionAfterDependenciesResolved( assetId ) );
+			}
+			return defer.promise();
+		};
+	}
+
+	//a special module which is a package of modules, like a container
+	_loader( "pack", {
+		load: resolveDependencies( $.noop ),
+		url: "assetId"
+	} );
+
+	//js adapter try to parse the content of js file
+	_loader( "js", {
+		load: {
+			staticLoaded: "hasScriptTag"
+			//the following are commented out, because it is default value defined in convertLoadFiltersToLoadMethod
+			//crossSiteLoad: "getScript",
+			//getSource: "getTextByAjax",
+			//compile: "globalEval",
+			//buildDependencies: "parseDependTag",
+			//buildUnload: "parseUnloadTag"
+		},
+		//this is necessary because if you have a sub loader inherits from
+		//from this, and you don't want to inherited sub loader to specify this again
+		fileExt: "js"
+	} );
+
+	_loader( "jsl", "js", {
+		load: {
+			compile: "localEval"
+		}
+	} );
+	//loader is javascript file, it defines a loader
+	_loader( "loader", "js", {
+		url: "folder"
+	} );
+
+	//css adapter tries to parse the content of css file
+	_loader( "css", {
+		load: {
+			staticLoaded: function( assetId ) {
+				return !!($( "link" ).filter(
+					function() {
+						return removeHash( this.href ) === removeHash( _loader.url( assetId ) ) && !$( this ).attr( 'loadedByloader' );
+					} ).length);
+			},
+			crossSiteLoad: function( assetId ) {
+				var defer = $.Deferred();
+
+				$( "<link href='" + _loader.url( assetId ) + "' " + "rel='stylesheet' type='text/css' loadedByloader='1' />" )
+					.load( function() {
+						defer.resolve( assetId );
+					} )
+					.appendTo( "head" );
+
+				return defer.promise();
+			},
+			//explicitly specify that loader does not need a compile filter
+			compile: null
+		},
+
+		unload: function( assetId ) {
+			var url = fullUrl( _loader.url( assetId ) );
+			$( "link" ).filter(
+				function() {
+					return this.href === url && $( this ).attr( 'loadedByloader' );
+				} ).remove();
+		},
+		fileExt: "css"
+	} );
+
+	_loader( "image", {
+		load: "cacheImage",
+		noRefCount: true
+	} );
+
+	//make img linker can handle module with these file extension
+	_loader.mapFileExtToLoader( "jpg,png,bmp,gif", "image" );
+	//fred test
+
+//
 //<@depends>subscription.js, model.js, declarative.js</@depends>
 
 
 	var template,
+		rBeginWithApk = /^apk\.([^.]+)(\.?)(.*)$/,
+		rBeginWithStar = /^\*/,
 		templateEngineAdapters = {},
-		renderContent = {
+		tmpl = {
 			initialize: "*templateOptions",
 			get: "get", //extensible
-			convert: "*dataToMarkup",
+			convert: "*template",
 			set: "html", //extensible
-			finalize: "*parseSub"
+			finalize: "*parseSubs"
 		};
 
-	function newTemplateWorkflow ( getter, setter, finalizer ) {
-		return extend( {}, renderContent,
+	function newTemplateHandler( getter, setter, finalizer ) {
+		return extend( {}, tmpl,
 			isObject( getter ) ? getter : {
 				get: getter,
 				set: setter,
@@ -3490,7 +5051,7 @@
 		return unescapeMap[token] || "";
 	};
 
-	function RenderContext ( e ) {
+	function RenderContext( e ) {
 		this.modelPath = e.publisher.path;
 		this.e = e;
 	}
@@ -3498,13 +5059,13 @@
 	//shortcut to this.e.publisher.get(xxx);
 	RenderContext.prototype.get = function() {
 		var publisher = this.e.publisher;
-		return publisher.get.apply( publisher, slice.call( arguments ) );
+		return publisher.get.apply( publisher, arguments );
 	};
 
 	//this converter is used in handlers which can want to convert data
-	// to markup, these handler includes foreach, and newTemplateWorkflow
+	// to markup, these handler includes foreach, and newTemplateHandler
 	//which is the core of all templateHandler
-	hm.activity.convert.dataToMarkup = function( data, e ) {
+	hm.activity.convert.template = function( data, e ) {
 
 		//if dataSource is an array, it has item(s)
 		//or dataSource is non-array
@@ -3520,20 +5081,32 @@
 			//however, if you want to want to treat your array as item, you need to wrap it by your
 			//self, wrapDataInArray is for this purpose
 
-			var workflow = e.workflow,
+			var templateId, templateData, workflow = e.handler;
+
+			if (workflow.templateId) {
+				templateId = workflow.templateId;
+				templateData = workflow.wrapDataInArray ? [data] : data;
+			} else {
+				templateId = data;
+				templateData = {};
+			}
+
+			if (!templateId) {
+				return "";
+			}
 
 			//handler.templateId, handler.wrapDataInArray, handler.engineName is
 			//built in during initialization , see initializers.templateOptions
-				content = renderTemplate(
+			var content = renderTemplate(
 
-					workflow.templateId,
+				templateId,
 
-					workflow.wrapDataInArray ? [data] : data,
+				templateData,
 
-					//this context can be used to access model within the template
-					new RenderContext( e ),
+				//this context can be used to access model within the template
+				new RenderContext( e ),
 
-					workflow.engineName );
+				workflow.engineName );
 
 			if (isPromise( content )) {
 				return content;
@@ -3552,63 +5125,60 @@
 	};
 
 	//when the template is render, need to recursively import declarative subscriptions
-	hm.activity.finalize.parseSub = function( value, e ) {
-		$( value ).parseSub();
+	hm.activity.finalize.parseSubs = function( value, e ) {
+		$( value ).parseSubs();
 
 	};
 
 	//add reusable event handler
-	hm.workflowType( {
-		renderContent: renderContent,
-		renderSelf: newTemplateWorkflow( "get", "replaceWith" )
+	hm.workflow( {
+		tmpl: tmpl,
+		include: newTemplateHandler( "get", "replaceWith" )
 	} );
 
-	extend( hm.groups, {
-		//this is for render everything but just once, after that it will not update itself
-		"for": "!init:.|*renderContent",
+	bindings( {
 
-		//this is for render a single object inside a container
-		forSelf: "!init after*.:.|*renderContent",
+		tmpl: "!init:.|*tmpl",
 
-		//this is for render an array inside of container view
-		//data-sub="forChildren:path|templateId"
-		forChildren: "!init after*. after*.1:.|*renderContent",
+		tmplOnChange: "!init after*.:.|*tmpl",
 
-		//this is for render everything, and update view on change of any decedent
-		forAll: "!init after*:.|*renderContent",
+		tmplOnChildChange: "!init after*. after*.1:.|*tmpl",
 
-		//data-sub="renderSelf:path|templateId"
-		renderSelf: "!init:.|*renderSelf"
+		tmplOnAnyChange: "!init after*:.|*tmpl",
+
+		include: "!init:.|*include"
 	} );
 
 	//templateOptions is templateId,wrapDataInArray,templateEngineName
-	//$("div").renderContent(templateId, path)
-	//$("div").renderContent(templateId, path, fn)
-	$fn.renderContent = function( templateOptions, modelPath, templateHandlerExtension ) {
+	//$("div").tmpl(templateId, path)
+	//$("div").tmpl(templateId, path, fn)
+	//if templateWorkflowExtension is a function, the function is treated
+	//as finalizer
+	$fn.tmpl = function( templateOptions, modelPath, templateWorkflowExtension ) {
 
 		modelPath = modelPath || "";
 
-		if (isFunction( templateHandlerExtension )) {
-			templateHandlerExtension = {
-				finalize: templateHandlerExtension
+		if (isFunction( templateWorkflowExtension )) {
+			templateWorkflowExtension = {
+				finalize: templateWorkflowExtension
 			};
 		}
 
-		return this.initView(
+		return this.renderView(
 
 			modelPath,
 
-			templateHandlerExtension ?
-				extend( {}, renderContent, templateHandlerExtension ) :
-				"*renderContent",
+			templateWorkflowExtension ?
+				extend( {}, tmpl, templateWorkflowExtension ) :
+				"*tmpl",
 
 			templateOptions
 		);
 	};
 
 	//templateOptions is templateId,wrapDataInArray,templateEngineName
-	//$("div").render(path, templateId)
-	$fn.renderSelf = function( templateOptions, modelPath, templateHandlerExtension ) {
+	//$("div").include(path, templateId)
+	$fn.include = function( templateOptions, modelPath, templateHandlerExtension ) {
 
 		if (isFunction( templateHandlerExtension )) {
 			templateHandlerExtension = {
@@ -3616,14 +5186,14 @@
 			};
 		}
 
-		return this.initView(
+		return this.renderView(
 			modelPath,
-			templateHandlerExtension ? extend( {}, hm.workflowType( "renderSelf" ), templateHandlerExtension ) : "*renderSelf",
+			templateHandlerExtension ? extend( {}, hm.workflow( "replace" ), templateHandlerExtension ) : "*replace",
 			templateOptions
 		);
 	};
 
-	function getTemplateEngine ( engineName ) {
+	function getTemplateEngine( engineName ) {
 		engineName = engineName || template.defaultEngine;
 		if (!engineName) {
 			throw "engine name is not specified or default engine name is null";
@@ -3636,19 +5206,22 @@
 
 	}
 
-	function renderTemplate ( templateId, data, renderContext, engineName ) {
+	function renderTemplate( templateId, data, renderContext, engineName ) {
 
 		var engineAdapter = getTemplateEngine( engineName, templateId );
 
 		templateId = $.trim( templateId );
 
-		if (engineAdapter.isTemplateLoaded( templateId )) {
+		//remove the starting "*" from the template id to become the realTemplateId
+		var realTemplateId = templateId.replace( rBeginWithStar, "" );
 
-			return engineAdapter.render( templateId, data, renderContext );
+		if (engineAdapter.isTemplateLoaded( realTemplateId )) {
+
+			return engineAdapter.render( realTemplateId, data, renderContext );
 
 		} else if (engineAdapter.renderAsync) {
 
-			return engineAdapter.renderAsync( templateId, data, renderContext );
+			return engineAdapter.renderAsync( realTemplateId, data, renderContext );
 
 		} else {
 
@@ -3663,7 +5236,7 @@
 			//template.load is implemented in external-template.js
 			template.load( templateId ).done( function() {
 
-				var content = engineAdapter.render( templateId, data, clonedContext ),
+				var content = engineAdapter.render( realTemplateId, data, clonedContext ),
 					rtn = $( content );
 
 				defer.resolve( rtn.selector || !rtn.length ? content : rtn );
@@ -3700,18 +5273,23 @@
 
 		//dynamically load a template by templateId,
 		//it is called by template.render
-		//The default implementation required matrix.js
+		//The default implementation required loader.js
 		//but you can override this, all you need
 		// is to return is that a promise, when the promise is
 		// done, the template should be ready to used
 		load: function( templateId ) {
-			throw "not implemented";
+			//we need to modify the id by adding an extension to the id
+			// hm.loader use extension to determine what loader is used
+			// handle the actual loading work
+			return _loader.load( templateId.endsWith( ".html" ) ? templateId : templateId + ".template" );
 		},
 
 		//this should be called by hm.template.load after the method
 		//get the source of the template
 		compile: function( templateId, source, engineName ) {
-			return getTemplateEngine( engineName ).compile( templateId, source );
+			return getTemplateEngine( engineName ).compile(
+				templateId.endsWith( ".template" ) ? _loader.fileName( templateId ) : templateId,
+				source );
 		},
 
 		//build a customized handler which handle the change of model
@@ -3721,8 +5299,85 @@
 		//
 		//setFilter is "html" which is to change the content of the view
 		//it can be a string or function (e, value)
-		newTemplateWorkflow: newTemplateWorkflow
+		newTemplateHandler: newTemplateHandler,
+
+		templateIdToUrl: function( templateId ) {
+
+			var match = rBeginWithApk.exec( templateId );
+
+			return match ?
+				//apk.hello --> applet/hello/main.html
+				//apk.hello.bye --> applet/hello/bye.html
+				"apk/" + match[1] + "/" + (match[3] || "main" ) + ".html" :
+
+				//xxx.html --> xxx.html
+				//xxx.yyy.html --> xxx.yyy.html
+				templateId.endsWith( ".html" ) ? templateId :
+
+					//xxx --> xxx.html
+					//xxx.yyy --> xxx.html
+					templateId.split( "." )[0] + ".html";
+
+		}
+
 	};
+
+	_loader( "template", {
+
+		load: {
+			compile: function( moduleId, sourceCode ) {
+
+				var $scriptList = $( sourceCode );
+
+				var hasScriptTag = false;
+				$scriptList.each( function() {
+
+					if (this.tagName == "SCRIPT") {
+						hasScriptTag = true;
+						return false;
+					}
+				} );
+
+				if (hasScriptTag) {
+
+					$scriptList.each( function() {
+
+						if (this.tagName == "SCRIPT") {
+
+							var $sourceCodeContainer = $( this );
+
+							template.compile(
+								this.id,
+								$sourceCodeContainer.html(),
+								$sourceCodeContainer.attr( "type" ) || template.defaultEngine );
+						}
+
+					} );
+				} else {
+					template.compile( moduleId, sourceCode, template.defaultEngine );
+				}
+
+			},
+			buildDependencies: "parseDependsTag"
+		},
+
+		url: function( templateId ) {
+			//first truncate the ".template" in the templateId, and get the real templateId
+			return template.templateIdToUrl( _loader.fileName( templateId ) );
+		}
+	} );
+
+	_loader( "html", "template", {
+		//		load: {
+		//			compile: function( moduleId, sourceCode ) {
+		//				return template.compile( moduleId, sourceCode, template.defaultEngine );
+		//			}
+		//		}
+
+		url: function( templateId ) {
+			return templateId;
+		}
+	} );
 
 
 	if ($.render && $.templates) {
@@ -3764,7 +5419,7 @@
 		tags( {
 			//#debug
 			//{{debugger /}} so that it can stop in template function
-			"debugger": function x ( e ) {
+			"debugger": function x( e ) {
 				if (x.enabled) {
 					debugger;
 				}
@@ -3773,29 +5428,15 @@
 			//#end_debug
 
 			//{{ts /}} so that it can emit a timestamp
-			ts: function x () {
+			ts: function x() {
 				return x.enabled ?
 					"<span style='color:red' data-sub='show:/*ts'>updated on:" + (+new Date() + "").substring( 7, 10 ) + "</span>" :
 					"";
 			},
 
-			//{{indexToNs /}}
-			indexToNs: function() {
-				var index = this.tagCtx.view.index,
-					path = this.ctx.modelPath;
-
-				if (isUndefined( index )) {
-					//this is the case when template is render with
-					// a single data item instead of array
-					index = (this.ctx.e.publisher.count() - 1);
-				}
-
-				return "ns:/" + path + "." + index;
-			},
-
-			get: function () {
+			get: function() {
 				var publisher = this.ctx.e.publisher;
-				return publisher.get.apply( publisher, slice.call( arguments ) );
+				return publisher.get.apply( publisher, arguments );
 			},
 
 			prop: function() {
@@ -3808,17 +5449,32 @@
 				}
 
 				var itemNode = this.ctx.e.publisher.cd( index );
-				return itemNode.get.apply( itemNode, slice.call( arguments ) );
+				return itemNode.get.apply( itemNode, arguments );
 			},
 
-			//{{keyToNs /}}
-			keyToNs: function() {
-				return "ns:/" + this.ctx.modelPath + ".table." + this.ctx.e.publisher.itemKey( this.tagCtx.view.data );
+			//{{fixedRowId /}}
+			fixedRowId: function() {
+				return "/" + this.ctx.modelPath + ".table." + this.ctx.e.publisher.itemKey( this.tagCtx.view.data );
 			},
 
-			//{{dataPathAsNs /}}
-			dataPathAsNs: function() {
-				return "ns:/" + this.ctx.modelPath;
+			//{{rowId /}}
+			rowId: function() {
+				var index = this.tagCtx.view.index,
+					path = this.ctx.modelPath;
+
+				if (isUndefined( index )) {
+					//this is the case when template is render with
+					// a single data item instead of array
+					index = (this.ctx.e.publisher.count() - 1);
+				}
+
+				return "/" + path + "." + index;
+			},
+
+			//{{modelPath /}}
+			//it useful when  in http://jsbin.com/etacob/6/edit
+			modelPath: function() {
+				return "/" + this.ctx.modelPath;
 			}
 
 		} );
@@ -3865,21 +5521,18 @@
 			return options.data.renderContext.modelPath;
 		} );
 
-		//{{indexToNs}}
-		Handlebars.registerHelper( "indexToNs", function( options ) {
-			return "ns:/" + options.data.renderContext.modelPath + "." + options.data.index + ";";
+		//{{rowId}}
+		Handlebars.registerHelper( "rowId", function( options ) {
+			return "/" + options.data.renderContext.modelPath + "." + options.data.index + ";";
 		} );
 
-		//{{keyToNs}}
-		Handlebars.registerHelper( "keyToNs", function( options ) {
+		//{{fixedRowId}}
+		Handlebars.registerHelper( "fixedRowId", function( options ) {
 			var renderContext = options.data.renderContext;
-
-			var rtn = "ns:/" + renderContext.modelPath + ".table." +
-			          renderContext.e.publisher.itemKey( this );
-			return rtn;
+			return "/" + renderContext.modelPath + ".table." + renderContext.e.publisher.itemKey( this );
 		} );
 
-		//{{get "..hardCode" name}}
+		//{{get "..setTo" name}}
 		Handlebars.registerHelper( "get", function() {
 			var args = arguments,
 				last = args.length - 1,
@@ -3916,19 +5569,6 @@
 //<@depends>subscription.js, model.js, declarative.js, template.js</@depends>
 
 
-	function getCheckableControlValue ( $elem ) {
-		var elem = $elem[0];
-		if (elem.value == "true") {
-			return true;
-		} else if (elem.value == "false") {
-			return false;
-		} else if (elem.value !== "on") {
-			return elem.value;
-		} else {
-			return elem.checked;
-		}
-	}
-
 	//don't change it to because we want to control the search order
 	//check findValueAdapter($elem, adapterName)
 	//{
@@ -3939,6 +5579,20 @@
 		{
 			//the default view adapter
 			name: "textBoxOrDropDown",
+			initialize: function( $elem, modelValue ) {
+				if (modelValue) {
+					if ($elem[0].tagName == "SELECT") {
+						$elem.children().each( function() {
+							if (this.value == modelValue) {
+								$( this ).attr( "selected", "selected" );
+								return false;
+							}
+						} );
+					} else {
+						$elem.attr( "value", modelValue );
+					}
+				}
+			},
 			get: function( $elem ) {
 				return $elem.val();
 			},
@@ -3951,8 +5605,26 @@
 		},
 		{
 			name: "checkbox",
-			get: getCheckableControlValue,
-			set: function setCheckbox ( $elem, value ) {
+			initialize: function( $elem, modelValue ) {
+				if (modelValue) {
+					$elem.attr( "checked", "checked" );
+				}
+			},
+			get: function( $elem, e ) {
+				var elem = $elem[0];
+				var value = elem.value;
+
+				if (value == "true") {
+					return true;
+				} else if (value == "false") {
+					return false;
+				} else if (value !== "on") {
+					return value;
+				} else {
+					return elem.checked;
+				}
+			},
+			set: function setCheckbox( $elem, value ) {
 				var elem = $elem[0];
 				if (isBoolean( value )) {
 					elem.checked = value;
@@ -3966,7 +5638,30 @@
 		},
 		{
 			name: "radio",
-			get: getCheckableControlValue,
+			initialize: function( $elem, modelValue ) {
+
+				if (modelValue == $elem[0].value) {
+					$elem.attr( "checked", "checked" );
+				}
+			},
+			get: function( $elem, e ) {
+				if (e.type == "resetVal" && !e.publisher.attr( "checked" )) {
+					e.abort();
+					return;
+				}
+
+				var elem = $elem[0];
+				var value = elem.value;
+				if (value == "true") {
+					return true;
+				} else if (value == "false") {
+					return false;
+				} else if (value !== "on") {
+					return value;
+				} else {
+					return elem.checked;
+				}
+			},
 			set: function( $elem, value, e ) {
 				var elem = $elem[0];
 				if (!elem.name) {
@@ -3980,27 +5675,25 @@
 		},
 		{
 			name: "listBox",
+			initialize: function( $elem, modelValue ) {
+				$elem.children().each( function() {
+					if (modelValue.contains( this.value )) {
+						$( this ).attr( "selected", "selected" );
+					}
+				} );
+			},
+
 			get: function( $elem ) {
 				var options = [];
 				$elem.children( "option:selected" ).each( function() {
 					options.push( this.value );
 				} );
-				return options;
+				return options.length ? options : null;
 			},
 			set: function( $elem, value ) {
-
-				$elem.children( "option:selected" ).removeAttr( "selected" );
-
-				function fn () {
-					if (this.value == itemValue) {
-						this.selected = true;
-					}
-				}
-
-				for (var i = 0, itemValue; i < value.length; i++) {
-					itemValue = value[i];
-					$elem.children( "option" ).each( fn );
-				}
+				$elem.children().each( function() {
+					this.selected = !!(value && value.contains( this.value ));
+				} );
 			},
 			match: function( $elem ) {
 				return $elem.is( "select[multiple]" );
@@ -4008,7 +5701,7 @@
 		}
 	];
 
-	function findValueAdapter ( $elem, adapterName ) {
+	function findValueAdapter( $elem, adapterName ) {
 		var i, adapter;
 
 		if (adapterName) {
@@ -4030,16 +5723,16 @@
 	}
 
 	hm.activity.get.getViewValue = function( e ) {
-		//e.workflow.getViewValue is initialized when on subscription
-		return e.workflow.getViewValue( e.publisher );
+		//e.handler.getViewValue is initialized when on subscription
+		return e.handler.getViewValue( e.publisher, e );
 	};
 
 	hm.activity.set.setViewValue = function( value, e ) {
-		//e.workflow.setViewValue is initialized when on subscription
-		return e.workflow.setViewValue( this, value, e );
+		//e.handler.setViewValue is initialized when on subscription
+		return e.handler.setViewValue( this, value, e );
 	};
 
-	function initAdapterMethodForView ( view, workflow, adapterName, methodName ) {
+	function initAdapterMethodForView( model, view, handler, adapterName, methodName ) {
 
 		var adapter = findValueAdapter( view, adapterName );
 
@@ -4048,28 +5741,40 @@
 			throw "can not find " + methodName + " method for view";
 		}
 
-		workflow[methodName + "ViewValue"] = adapter[methodName];
+		//create handler.getViewValue or handler.setViewValue
+		handler[methodName + "ViewValue"] = adapter[methodName];
 
 		if (adapter.convert) {
-			workflow.convert = adapter.convert;
+			handler.convert = adapter.convert;
 		}
 
+		//we want to run the initialize method only once
 		if (!view.hmData( "valueBound" )) {
 
-			adapter.initialize && adapter.initialize( view );
+			adapter.initialize && adapter.initialize( view, model.get() );
+
+			//when "reset" event is trigger to parent form, the children does
+			//not trigger the event, so that we need to trigger "resetVal" to update
+			//back the original value to modal
+			view.parents( "form" ).bind( "reset", function() {
+
+				setTimeout( function() {
+					view.triggerHandler( "resetVal" );
+				}, 10 );
+			} );
 
 			view.hmData( "valueBound", true );
 
 		}
 	}
 
-	hm.workflowType( {
+	hm.workflow( {
 
 		//set view value with model value
 		updateViewValue: {
 			initialize: function( publisher, subscriber, workflow, adapterName ) {
 				//subscriber is view, trying to getModel setView
-				initAdapterMethodForView( subscriber, workflow, adapterName, "set" );
+				initAdapterMethodForView( publisher, subscriber, workflow, adapterName, "set" );
 
 			},
 			get: "get",
@@ -4081,7 +5786,7 @@
 
 			initialize: function( publisher, subscriber, workflow, adapterName ) {
 				//publisher is view, trying to getView setModel
-				initAdapterMethodForView( publisher, workflow, adapterName, "get" );
+				initAdapterMethodForView( subscriber, publisher, workflow, adapterName, "get" );
 
 			},
 			get: "*getViewValue",
@@ -4131,53 +5836,41 @@
 	//val:path|,updateView
 	//val:path|,,date
 	//val:path|updateEvent,updateDirection,adapterName
-	hm.groups.val = function( elem, path, group, options ) {
+	bindings( {
+		val: function( elem, path, context, options ) {
 
-		var updateDirection,
-			updateEvent,
-			adapterName;
+			var updateTarget,
+				updateEvent,
+				adapterName;
 
-		options = options || "";
+			options = options || "";
 
-		if (!options) {
-			updateEvent = "change";
-		} else {
-			options = options.split( "," );
-			updateEvent = options[0] || "change"; //by default it is "change"
-			updateDirection = options[1]; //undefined, updateView or updateModel
-			adapterName = options[2];
+			if (!options) {
+				updateEvent = "change";
+			} else {
+				options = options.split( "," );
+				updateEvent = options[0] || "change"; //by default it is "change"
+				updateTarget = options[1]; //undefined, updateView or updateModel
+				adapterName = options[2];
+			}
+
+			if (!updateTarget || updateTarget == "view") {
+				context.appendSub( elem, path, "init1 after*", "*updateViewValue", adapterName );
+			}
+
+			if (!updateTarget || updateTarget == "model") {
+
+				//when form is reset, the default behavior of the html form value is reset
+				// to value specify "value" attribute, however the change event does not trigger,
+				//
+				//so we need to use a special event "resetVal" which is triggered
+				// when the parent form element is triggered
+				// by using this event, we want to update model from the view value
+				context.prependSub( path, elem, updateEvent + " resetVal", "*updateModelValue", adapterName );
+
+			}
 		}
-
-		if (!updateDirection || updateDirection == "updateView") {
-			group.appendSub( elem, path, "init1 after*", "*updateViewValue", adapterName );
-		}
-
-		if (!updateDirection || updateDirection == "updateModel") {
-
-			group.appendSub( path, elem, updateEvent + " resetVal", "*updateModelValue", adapterName );
-
-		}
-
-	};
-
-	hm.groups.resetFormValues = function( elem, path, subscriptions, options ) {
-
-		var $elem = $( elem );
-
-		//this will update the input which use "val" subscription group
-		//to update the model with the default value of the input
-		function reset () {
-			$elem.find( ":input" ).trigger( "resetVal" );
-		}
-
-		$elem.bind( "reset", function() {
-			//the timeout is necessary,because
-			//when the reset event trigger, the default behavior of
-			//html that resetting all the value of the input is not done yet
-			//so delay the fromReset event
-			setTimeout( reset, 1 );
-		} );
-	};
+	} );
 
 
 
@@ -4187,16 +5880,16 @@
 
 	defaultOptions.confirmMessage = "Are you sure?";
 
-	function addGroupAndWorkflowType ( features ) {
+	function addBindingAndWorkflowType( features ) {
 		for (var name in features) {
 			var item = features[name];
-			hm.groups[name] = item[0];
-			hm.workflowType( name, item[1] );
+			bindings( name, item[0] );
+			hm.workflow( name, item[1] );
 		}
 	}
 
 	hm.activity.get.compareTruthy = function( e ) {
-		var expression = e.workflow.options,
+		var expression = e.handler.options,
 			publisher = e.publisher;
 		return isUndefined( expression ) ?
 			!publisher.isEmpty() :
@@ -4209,20 +5902,22 @@
 		workflow.options = parts[1];
 	};
 
-	addGroupAndWorkflowType( {
+	addBindingAndWorkflowType( {
 
 		//--------changing view----------
 		options: [
 			"!init after*:.|*options",
 			//add model workflows
 			//render <select> options
+			//<select options="modelPath">
+			//<select options="modelPath|propertyName">
+			//<select options="modelPath|textColumn,valColumn">
 			{
 				//this is actually the execute function, in this workflow
 				//there is no set, the content of the view is render
 				//in the get function.
 				get: function( e ) {
-
-					var options = e.workflow.options,
+					var options = e.handler.options,
 						subscriber = this,
 						value = subscriber.val();
 
@@ -4243,9 +5938,10 @@
 
 				initialize: function( publisher, subscriber, workflow, options ) {
 					if (options) {
-						var parts = options.split( "," );
-						var textColumn = parts[0];
-						var valueColumn = parts[1] || parts[0];
+
+						var parts = options.split( "," ),
+							textColumn = parts[0],
+							valueColumn = parts[1] || parts[0];
 
 						workflow.options = {
 							name: function( item ) {
@@ -4341,7 +6037,7 @@
 
 				set: function( truthy, e ) {
 
-					this[truthy ? "addClass" : "removeClass"]( e.workflow.className );
+					this[truthy ? "addClass" : "removeClass"]( e.handler.className );
 				}
 			}
 		],
@@ -4356,7 +6052,7 @@
 
 				set: function( truthy, e ) {
 
-					this[truthy ? "removeClass" : "addClass"]( e.workflow.className );
+					this[truthy ? "removeClass" : "addClass"]( e.handler.className );
 
 				}
 			}
@@ -4370,7 +6066,7 @@
 					var method,
 						reverse,
 						value = e.publisher.get(),
-						className = e.workflow.options;
+						className = e.handler.options;
 
 					if (className) {
 						if (className.startsWith( "!" )) {
@@ -4456,11 +6152,19 @@
 			"$click:.|*alert",
 
 			function( e ) {
-				alert( isUndefined( e.workflow.options ) ? this.get() : e.workflow.options );
+				alert( isUndefined( e.handler.options ) ? this.get() : e.handler.options );
 			}
 
 		],
 
+		log: [
+
+			"$click:.|*log",
+
+			function (e) {
+				hm.log( isUndefined( e.handler.options ) ? this.get() : e.handler.options );
+			}
+		],
 		preventDefault: [
 
 			"$click:_|*preventDefault",
@@ -4484,18 +6188,18 @@
 		//confirm:_|your message
 		confirm: [
 
-			//replacing "$click:.|*confirm", with dynamic group,
+			//replacing "$click:.|*confirm", with dynamic binding,
 			//so that it can be fix the problem caused by mapEvent
-			//as long as it is placed before mapEvent subscription group
-			function( elem, path, group, options ) {
+			//as long as it is placed before mapEvent dynamic binding
+			function( elem, path, binding, options ) {
 				hm.sub( path, elem, "click", "*confirm", options );
 			},
 
 			function( e ) {
 
-				var message = isUndefined( e.workflow.options ) ?
-					this && this.get && this.get() || defaultOptions.confirmMessage :
-					e.workflow.options;
+				var message = isUndefined( e.handler.options ) ?
+					this && this.path && this.get && this.get() || defaultOptions.confirmMessage :
+					e.handler.options;
 
 				if (!confirm( message )) {
 					e.stopImmediatePropagation();
@@ -4505,14 +6209,14 @@
 		],
 
 		///------changing model------------
-		hardCode: [
-			"$click:.|*hardCode",
+		setTo: [
+			"$click:.|*setTo",
 			{
 				initialize: function( publisher, subscriber, workflowInstance, options ) {
-					workflowInstance.hardCode = toTypedValue( options );
+					workflowInstance.setTo = toTypedValue( options );
 				},
 				get: function( e ) {
-					this.set( e.workflow.hardCode );
+					this.set( e.handler.setTo );
 				}
 			}
 		],
@@ -4590,7 +6294,7 @@
 					workflow.asc = !!options[1];
 				},
 				get: function( e ) {
-					var workflow = e.workflow;
+					var workflow = e.handler;
 					this.sort( workflow.by, workflow.asc );
 					workflow.asc = !workflow.asc;
 				}
@@ -4615,11 +6319,11 @@
 		]
 	} );
 
-	extend( hm.groups, {
+	bindings( {
 
-		caption: function( elem, path, group, options ) {
+		caption: function( elem, path, context, options ) {
 
-			$( elem ).prepend( "<option value=''>" + (options || hm.get( path )) + "</option>" );
+			$( elem ).prepend( "<option value=''>" + (options || hm.get( path ) || "") + "</option>" );
 		},
 
 		autofocus: function( elem ) {
@@ -4628,37 +6332,34 @@
 			}, 1 );
 		},
 
-		mapEvent: function( elem, path, subscriptions, options ) {
+		mapEvent: function( elem, path, context, options ) {
 			options = options.split( "," );
 			$( elem ).mapEvent( options[0], options[1], options[2] );
 
 		},
 
-		mapClick: function( elem, path, subscriptions, options ) {
+		mapClick: function( elem, path, context, options ) {
 			options = options.split( "," );
 			$( elem ).mapEvent( "click", options[0], options[1] );
 		},
 
-		logPanel: function( elem, path, group, options ) {
+		logPanel: function( elem, path, context, options ) {
 
-			var $elem = $( elem ),
-				$ol = $elem.is( "ol" ) ? $elem : $( "<ol style='font-family: monospace, serif' />" ).appendTo( $elem ),
-				ol = $ol[0];
+			$( elem ).css( "list-style-type", "decimal" ).css( "font-family", "monospace, serif" );
 
-			//		appendSub: function( subscriber, publisher, eventTypes, handler, options, delegate ) {
-			group.appendSub( ol, "*log", "init", function( e ) {
+			context.appendSub( elem, "*log", "init", function( e ) {
 				var allLogs = e.publisher.get();
 				for (var i = 0; i < allLogs.length; i++) {
-					$ol.append( "<li>" + allLogs[i] + "</li>" );
+					this.append( "<li>" + allLogs[i] + "</li>" );
 				}
 			} );
 
-			group.appendSub( ol, "*log", "afterCreate.1", function( e ) {
-				$ol.append( "<li>" + e.originalPublisher.raw() + "</li>" );
+			context.appendSub( elem, "*log", "afterCreate.1", function( e ) {
+				this.append( "<li>" + e.originalPublisher.raw() + "</li>" );
 			} );
 
-			group.appendSub( ol, "*log", "afterCreate", function( e ) {
-				$ol.empty();
+			context.appendSub( elem, "*log", "afterCreate", function( e ) {
+				this.empty();
 			} );
 		},
 
@@ -4674,11 +6375,15 @@
 		html: "!init after*:.|get html *toString",
 
 		//data-sub="text:path"
-		text: "!init after*:.|get text *toString"
+		text: "!init after*:.|get text *toString",
+
+		removeIfDel: "!duringDel:.|*fakeGet remove",
+
+		emptyIfDel: "!duringDel:.|*fakeGet empty"
 
 	} );
 
-	hm.newViewEvent( {
+	hm.newJqEvent( {
 
 		enter: ["keyup", function( e ) {
 			return (e.keyCode === 13);
@@ -4965,7 +6670,7 @@
 
 		var validatorName = validator.name;
 
-		if (hm.workflowType( validatorName )) {
+		if (hm.workflow( validatorName )) {
 			throw "validator name '" + validatorName + "' collide with name in hm.workflowTypes";
 		}
 
@@ -4975,15 +6680,19 @@
 			defaultOptions.errors[validatorName] = validator.error;
 		}
 
+		if (validator.isValid instanceof RegExp) {
+			validator.isValid = buildRegexFn( validator.isValid );
+		}
+
 		var workflowTypeName = "v_" + validatorName;
-		hm.workflowType( workflowTypeName, buildValidationWorkflowType( validator ) );
+		hm.workflow( workflowTypeName, buildValidationWorkflowType( validator ) );
 
 		//data-sub="required:path" or data-sub="required:path|options"
-		hm.groups[validatorName] = "!afterUpdate checkValidity:.|*" + workflowTypeName;
+		bindings( validatorName, "!afterUpdate checkValidity:.|*" + workflowTypeName );
 
 	};
 
-	hm.workflowType( {
+	hm.workflow( {
 		checkValidity: function( e ) {
 			if (!hm.checkValidity( this.path )) {
 				//because it is the first handler, e.stopImmediatePropagation will
@@ -5014,16 +6723,21 @@
 			}
 		},
 
-		renderErrorSummary: hm.template.newTemplateWorkflow(
+		highlightError: function( e ) {
+			this[e.publisher.isEmpty() ? "removeClass" : "addClass"]( "error" );
+
+		},
+
+		renderErrorSummary: hm.template.newTemplateHandler(
 			function( e ) {
 				return [e.publisher.getErrors()];
 			}
 		)
 	} );
 
-	extend( hm.groups, {
+	bindings( {
 
-		validator: function( elem, path, group, options ) {
+		validator: function( elem, path, context, options ) {
 			if (!options) {
 				throw "missing validator path";
 			}
@@ -5034,28 +6748,27 @@
 		},
 
 		//add a click handler to element to checkValidity
-		checkValidity: function( elem, path, subscriptions, options ) {
+		checkValidity: function( elem, path, context, options ) {
 			//prepend to to subscriptions array
 			//so that it is the first subscriptions, and it will be evaluated first
-			subscriptions.prependSub( path, elem, "click", "*checkValidity" );
+			context.prependSub( path, elem, "click", "*checkValidity" );
 		},
 
-		resetFormValidity: function( elem, path, subscriptions, options ) {
-			subscriptions.appendSub( path, elem, "reset", "*skipGet resetValidity" );
-		},
-
-		//$click:.|*skipGet resetValidity
-		resetForm: "resetFormValidity:.;resetFormValues:.",
-
-		resetValidity: "$click:.|*skipGet resetValidity",
+		resetValidity: "$click:.|*fakeGet resetValidity",
 
 		warn: "!after*:*errors|*warn",
+
+		"highlightError": "!after*:*errors|*highlightError",
 
 		warnSummary: "!afterUpdate* validityChecked:.|*renderErrorSummary;!validityReset:.|empty"
 
 	} );
 
-	function isPathValid ( path ) {
+	bindings( "form", function( elem, path, context, options ) {
+		context.appendSub( path, elem, "reset", "*fakeGet resetValidity" );
+	}, true );
+
+	function isPathValid( path ) {
 
 		if (path === "") {
 			return !invalidPaths.length;
@@ -5260,7 +6973,7 @@
 		invalidPathsModel.removeItem( path );
 	} );
 
-	function buildRegexFn ( ex, reverse ) {
+	function buildRegexFn( ex, reverse ) {
 		return reverse ? function( value ) {
 			return !ex.test( value );
 		} : function( value ) {
@@ -5268,7 +6981,7 @@
 		};
 	}
 
-	function defaultErrorBuilder ( format, options ) {
+	function defaultErrorBuilder( format, options ) {
 		return options.error || format.supplant( options );
 	}
 
@@ -5285,12 +6998,12 @@
 		{
 			name: "email",
 			error: "Please enter a valid email address.",
-			isValid: buildRegexFn( rEmail )
+			isValid: rEmail
 		},
 		{
 			name: "url",
 			error: "Please enter a valid URL.",
-			isValid: buildRegexFn( rUrl )
+			isValid: rUrl
 		},
 		{
 			name: "date",
@@ -5302,17 +7015,17 @@
 		{
 			name: "dateISO",
 			error: "Please enter a valid date (ISO).",
-			isValid: buildRegexFn( rDateISO )
+			isValid: rDateISO
 		},
 		{
 			name: "number",
 			error: "Please enter a valid number.",
-			isValid: buildRegexFn( rNumber )
+			isValid: rNumber
 		},
 		{
 			name: "digits",
 			error: "Please enter only digits.",
-			isValid: buildRegexFn( rDigit )
+			isValid: rDigit
 
 		},
 		{
@@ -5564,7 +7277,7 @@
 		}
 	] );
 
-	function resetValidity ( path ) {
+	function resetValidity( path ) {
 		var errorsModel = hm( path + "*errors" );
 		if (!errorsModel.isEmpty()) {
 			errorsModel.clear();
@@ -5572,20 +7285,20 @@
 		}
 	}
 
-	var isRequired = hm.workflowType( "v_required" ).get;
+	var isRequired = hm.workflow( "v_required" ).get;
 
-	function isModelRequired ( path ) {
+	function isModelRequired( path ) {
 		var subscriptionByModel = hm( path ).subsToMe();// subscriptions.getByPublisher( path );
 		for (var i = 0; i < subscriptionByModel.length; i++) {
 			var subscription = subscriptionByModel[i];
-			if (subscription.workflow.get === isRequired) {
+			if (subscription.handler.get === isRequired) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	function buildErrorMessage ( validator, options ) {
+	function buildErrorMessage( validator, options ) {
 
 		//named validator normally has a defaultError
 		var defaultError = validator.name && defaultOptions.errors[validator.name];
@@ -5613,7 +7326,7 @@
 		}
 	}
 
-	function buildValidationWorkflowType ( validator ) {
+	function buildValidationWorkflowType( validator ) {
 
 		return {
 
@@ -5626,7 +7339,7 @@
 				var isValid,
 					violateRequiredRule,
 					publisher = e.publisher,
-					options = e.workflow.options,
+					options = e.handler.options,
 					proposed = e.proposed,
 					errorMessage = buildErrorMessage( validator, options );
 
@@ -5663,7 +7376,7 @@
 		};
 	}
 
-	function traverseModelNeedValidation ( path, callback ) {
+	function traverseModelNeedValidation( path, callback ) {
 
 		//the following code try to trigger the "checkValidity" event, so that the validator will
 		// be called to check current value of the model
@@ -5691,81 +7404,11 @@
 		}
 	}
 
-	function isEmptyString ( value ) {
+	function isEmptyString( value ) {
 		return value === null || value === undefined || rEmpty.test( value );
 	}
 
 //
-//<@depends>subscription.js, model.js, declarative.js, template.js</@depends>
-//
-
-
-
-	if (!isUndefined( matrix )) {
-
-		template.load = function(templateId) {
-			return matrix( templateId + ".template" );
-		};
-
-		matrix.loader.set( "template", {
-
-			load: {
-				compile: function(moduleId, sourceCode) {
-
-					$( sourceCode ).filter( "script[id]" ).each( function() {
-
-						var $sourceCodeContainer = $( this );
-
-						template.compile(
-							this.id,
-							$sourceCodeContainer.html(),
-							$sourceCodeContainer.attr( "type" ) || template.defaultEngine );
-					} );
-				},
-				buildDependencies: "parseDependsTag"
-			},
-
-			url: function(templateId) {
-				//first truncate the ".template" in the templateId, and get the real templateId
-				return template.templateIdToUrl( matrix.fileName( templateId ) );
-			}
-		} );
-
-		//~ is the base url of matrix resource
-		//a -->     ~template/a/main.html
-		//a.b -->   ~template/a/b.html
-		//a.b.c --> ~template/a/b.html
-		//
-		//if id starts with "*", it is called share template
-		//shared template id is like fileName.remainingPart
-		//
-		//*a --> ~template/_/a.html
-		//*a.b --> ~template/_/a.html
-		//*a.b.c --> ~template/_/a.html
-		template.templateIdToUrl = function(templateId) {
-
-			var idSegments, folderName, fileName;
-
-			if (templateId.startsWith( "*" )) {
-				templateId = templateId.substr( 1 );
-				//
-				idSegments = templateId.split( "." );
-				folderName = "_";
-				fileName = idSegments[0];
-
-			} else {
-
-				idSegments = templateId.split( "." );
-				folderName = idSegments[0];
-				fileName = idSegments[1] || "main";
-
-			}
-
-			return "template/" + folderName + "/" + fileName + ".html";
-		};
-
-	}
-
 //<@depends>subscription.js, model.js, declarative.js, template.js</@depends>
 
 
@@ -5773,12 +7416,12 @@
 	// use rowView for the row in view
 	//use item for the item in model array
 
-	hm.workflowType( {
+	hm.workflow( {
 
 		//----------workflow type which modify row in list view-----------
 
 		//!afterCreate.1:array|*addRowView;
-		addRowView: newTemplateWorkflow(
+		addRowView: newTemplateHandler(
 
 			//the reason to use getOriginal is that
 			//the subscription is the items array
@@ -5814,7 +7457,7 @@
 		),
 
 		//!afterUpdate.1:array|*updateRowView
-		updateRowView: newTemplateWorkflow(
+		updateRowView: newTemplateHandler(
 
 			"*getOriginal",
 
@@ -5834,7 +7477,7 @@
 	//query result will automatically updated when
 	//query change, by default it is false
 	//which means user has refreshQuery manually
-	hmFn.initQueryable = function( autoQuery ) {
+	hmFn.enableQuery = function( autoQuery ) {
 
 		if (this.get( "*query" )) {
 			return this;
@@ -5859,11 +7502,11 @@
 
 		if (autoQuery) {
 			//items*queryResult ---referencing--> items*query
-			queryResultNode.reference( queryNode.path );
+			queryResultNode.watch( queryNode.path );
 		}
 
 		//items*queryResult --> items
-		queryResultNode.reference( this.path );
+		queryResultNode.watch( this.path );
 
 		this.extend(
 			"*",
@@ -5923,7 +7566,7 @@
 								pager.index = 0;
 							}
 							//
-							queryNode.triggerChange( "pager" );
+							queryNode.change( "pager" );
 						}
 						rtn = rtn.slice( pager.index * pager.size, (pager.index + 1) * pager.size );
 					}
@@ -6027,7 +7670,7 @@
 			}
 		);
 
-		function buildFilterFn ( e ) {
+		function buildFilterFn( e ) {
 			var ops = filter.ops,
 				by = filter.by,
 				value = filter.value,
@@ -6082,14 +7725,14 @@
 		return this;
 	};
 
-	extend( hm.groups, {
+	bindings( {
 
 		//listView:arrayPath|rowTemplateId
 		//
 		listView: //
 
 		//subscription from view
-			"forSelf:.;" +
+			"tmplOnChange:.;" +
 				//render newly appended data item by appending it to end of the view
 			"!afterCreate.1:.|*addRowView;" +
 				//render the updated data item in the view
@@ -6097,32 +7740,31 @@
 				//delete the deleted data item in the view
 			"!afterDel.1:.|*removeRowView",
 
-		initQueryable: function( elem, path, subscriptions, options ) {
-			hm( path ).initQueryable( !!options );
+		enableQuery: function( elem, path, context, options ) {
+			hm( path ).enableQuery( !!options );
 		},
 
 		//render the whole list of items
 		//queryView:items
-		queryView: "forAll:*queryResult",
+		queryView: "tmplOnAnyChange:*queryResult",
 
 		//sort:items|firstName
-		sortQueryButton: "$click:*query.sort.by|*hardCode;" +
+		sortQuery: "$click:*query.sort.by|*setTo;" +
 		                 "$click:*query.sort.asc|*toggle;" +
 		                 "$click:*refreshQuery",
 
-		//resetSortButton:items
-		resetSortButton: "$click:*resetSort;" +
+		//resetSort:items
+		resetSort: "$click:*resetSort;" +
 		                 "show:*query.sort.by",
 
-
-		//searchButton:items
-		searchButton: "$click:*refreshQuery;" +
+		//search:items
+		search: "$click:*refreshQuery;" +
 		              "enable:*query.filter.enabled",
 
-		resetSearchButton: "$click:*resetSearch;" +
+		resetSearch: "$click:*resetSearch;" +
 		                   "show:*query.filter.enabled",
 
-		resetQueryButton: "$click:*resetQuery;" +
+		resetQuery: "$click:*resetQuery;" +
 		                  "show:*query.enabled",
 
 		searchBox: "ns:*query.filter.value;" +
@@ -6130,17 +7772,17 @@
 		           "$esc:.|*null",
 
 		//pager:items|#pagerTemplate
-		pager: "forAll:*query.pager;" + //render pager using the data under items*query.pager
+		pager: "tmplOnAnyChange:*query.pager;" + //render pager using the data under items*query.pager
 		       "show:*hasQueryResult|_;" +
 		       "$paging:*paging;" +
 		       "preventDefault:.",
 
-		setPageButton: "true:*query.pager.enabled;" +
+		setPage: "true:*query.pager.enabled;" +
 		               "enable:*query.pager.size;" +
 		               "$click:*refreshQuery",
 
 		//path is ignore, does not create any subscription
-		page: function( elem, path, group, pageIndex ) {
+		page: function( elem, path, binding, pageIndex ) {
 			if (!pageIndex) {
 				throw "pageIndex is missing";
 			}
@@ -6164,7 +7806,7 @@
 
 
 	//create a table with some seeds
-	hm.table = function( seeds ) {
+	function createTable( seeds ) {
 		if (isUndefined( seeds )) {
 			seeds = [];
 		} else if (!isArray( seeds )) {
@@ -6178,9 +7820,9 @@
 		seeds.table = {};
 		seeds.guid = 0;
 		return seeds;
-	};
+	}
 
-	function handleArrayNodeUpdateDescendant ( e ) {
+	function handleArrayNodeUpdateDescendant( e ) {
 
 		var table,
 			publisher = e.publisher;
@@ -6219,11 +7861,11 @@
 		}
 	}
 
-	function handleArrayNodeCreateChild ( e ) {
-		this.set( "c" + e.publisher.get().guid++, e.proposed );
+	function handleArrayNodeCreateChild( e ) {
+		this.set( e.publisher.get().guid++, e.proposed );
 	}
 
-	function handleArrayNodeDeleteChild ( e ) {
+	function handleArrayNodeDeleteChild( e ) {
 		var table = this.get(),
 			removed = e.removed;
 
@@ -6235,23 +7877,25 @@
 		}
 	}
 
-	function handleTableNodeDeleteChild ( e ) {
+	function handleTableNodeDeleteChild( e ) {
 		this.removeItem( e.removed );
 	}
 
-	function handleTableNodeUpdateChild ( e ) {
+	function handleTableNodeUpdateChild( e ) {
 		this.replaceItem( e.removed, e.proposed );
 	}
 
+	//			onAddOrUpdateHandlers[i]( contextPath, indexPath, modelValue );
 	hm.onAddOrUpdateNode( function( context, index, array ) {
 
-		var table = isArray( array ) && array.table;
-		if (!table) {
+		if (!isArray( array )) {
 			return;
 		}
 
+		var table = createTable( array ).table;
+
 		for (var i = 0; i < array.length; i++) {
-			table["c" + array.guid++] = array[i];
+			table[array.guid++] = array[i];
 		}
 
 		var arrayNode = hm( context ).cd( index ),
@@ -6297,12 +7941,6 @@
 		return this.itemKey( this.get( index ) );
 	};
 
-	//add extend hm.Type, so that when you create a new Type
-	//Person, you can call Person.table([seed1, seed2])
-	//to create a new table of Person objects
-	hm.Class.table = function( items ) {
-		return  hm.table( this.list( items ) );
-	};
 
 //
 //<@depends>subscription.js, model.js, declarative.js, template.js</@depends>
@@ -6315,7 +7953,7 @@
 		return this.publisher.children().filter( this.originalPublisher.parents() ).index();
 	};
 
-	function EditObject ( index ) {
+	function EditObject( index ) {
 		this.selectedIndex = index;
 	}
 
@@ -6325,7 +7963,7 @@
 		//but here we disable these dependencies, because we want to
 		//manually trigger the events
 		//if it really depends them, the events will be hard to controlled
-		mode: function __ () {
+		mode: function __() {
 			var edit = this.get(),
 				item = edit.item,
 				selectedIndex = edit.selectedIndex;
@@ -6461,7 +8099,7 @@
 					clone( itemTemplate, true );
 
 			editShadowModel.update( "item", item );
-			editShadowModel.triggerChange( "mode" );
+			editShadowModel.change( "mode" );
 		},
 
 		editShadowItem: function( item, itemIndex ) {
@@ -6480,7 +8118,7 @@
 				}
 
 				this.set( "*edit.item", clone( itemValue, true ) );
-				this.triggerChange( "*edit.mode" );
+				this.change( "*edit.mode" );
 
 			} else {
 
@@ -6503,7 +8141,7 @@
 				editShadowModel.update( "item", copy )
 					.update( "selectedIndex", itemIndex );
 
-				editShadowModel.triggerChange( "mode" );
+				editShadowModel.change( "mode" );
 			}
 
 		},
@@ -6517,7 +8155,7 @@
 			if (isPrimitive( items ) || isObject( items )) {
 
 				this.set( "*edit.item", null );
-				this.triggerChange( "*edit.mode" );
+				this.change( "*edit.mode" );
 
 			} else {
 
@@ -6534,7 +8172,7 @@
 						edit.update( "selectedIndex", -1 );
 					}
 
-					edit.triggerChange( "mode" );
+					edit.change( "mode" );
 				}
 			}
 
@@ -6553,7 +8191,7 @@
 				this.set( this.get( "*edit.item" ) )
 					.set( "*edit.item", null );
 
-				this.triggerChange( "*edit.mode" );
+				this.change( "*edit.mode" );
 
 			} else {
 
@@ -6600,13 +8238,13 @@
 		}
 	} );
 
-	hm.workflowType( {
+	hm.workflow( {
 
 		//------workflows that modify model------
 
 		//$click:items|*editShadowItem
 		//$click:items*queryResult|*editShadowItem
-		newShadowItem: "*skipGet newShadowItem",
+		newShadowItem: "*fakeGet newShadowItem",
 
 		//$click:item|*editShadowItem
 		//$editRow:items|*editShadowItem
@@ -6661,7 +8299,7 @@
 
 		//!afterUpdate:items*edit.mode|*renderNewView;
 		//!afterUpdate:items*queryResult*edit.mode|*renderNewView;
-		renderNewView: newTemplateWorkflow(
+		renderNewView: newTemplateHandler(
 			function( e ) {
 				if (e.publisher.get() == "new") {
 					return e.publisher.main().get( "*edit.item" );
@@ -6673,7 +8311,7 @@
 
 		//"!beginInRowUpdate:items|*renderUpdateRowView;"
 		//"!beginInRowUpdate:items*queryResult|*renderUpdateRowView;"
-		renderUpdateRowView: newTemplateWorkflow(
+		renderUpdateRowView: newTemplateHandler(
 			//get activity
 			function( e ) {
 				return e.publisher.get( "*edit.item" );
@@ -6687,7 +8325,7 @@
 		//"!beginInRowUpdate:items|*renderUpdateRowView;"
 		//"!beginInRowUpdate:items*queryResult|*renderUpdateRowView;"
 		destroyUpdateRowView: function( e ) {
-			e.publisher.triggerChange( e.proposed );
+			e.publisher.change( e.proposed );
 		},
 
 		//$click:items*edit.item|*saveShadowItem;
@@ -6705,12 +8343,12 @@
 		}
 	} );
 
-	extend( hm.groups, {
+	bindings( {
 
 
 		// shadowEdit:items|rowTemplateId or
 		// shadowEdit:items*queryResult|rowTemplateId
-		shadowEdit: "!init:.|initShadowEdit *skipSet;" +
+		shadowEdit: "!init:.|initShadowEdit *fakeSet;" +
 		            "deleteRow:.;" +
 		            "$editRow:.|*editShadowItem",
 
@@ -6741,16 +8379,16 @@
 
 		//editItemView:items
 		//editItemView:items*queryResult
-		editItemView: "forSelf:*edit.item;" +
+		editItemView: "tmplOnChange:*edit.item;" +
 		              "showOnEdit:.",
 
-		displayItemView: "forSelf:.;hideOnEdit:.",
+		displayItemView: "tmplOnChange:.;hideOnEdit:.",
 
 		//showOnEdit:items
 		//showOnEdit:items*queryResult
 		//showOnEdit: "hide:*edit.mode|_read",
-		showOnEdit: function( elem, path, group, options ) {
-			group.appendSub( elem, path + "*edit.mode", "init afterUpdate", function( e ) {
+		showOnEdit: function( elem, path, context, options ) {
+			context.appendSub( elem, path + "*edit.mode", "init afterUpdate", function( e ) {
 				var mode = e.publisher.get();
 				this[(isUndefined( mode ) || mode == "read") ? "hide" : "show"]();
 			} );
@@ -6759,8 +8397,8 @@
 		//hideOnEdit:items
 		//hideOnEdit:items*queryResult
 		//hideOnEdit: "show:*edit.mode|_read",
-		hideOnEdit: function( elem, path, group, options ) {
-			group.appendSub( elem, path + "*edit.mode", "init afterUpdate", function( e ) {
+		hideOnEdit: function( elem, path, context, options ) {
+			context.appendSub( elem, path + "*edit.mode", "init afterUpdate", function( e ) {
 				var mode = e.publisher.get();
 				this[(isUndefined( mode ) || mode == "read") ? "show" : "hide"]();
 			} );
@@ -6775,18 +8413,17 @@
 		//this is only used non-array item edit
 		editObject: "$click:.|*editShadowItem;hideOnEdit:.",
 
+		//saveEdit:items*edit.item
+		//saveEdit:items*queryResult*edit.item
+		saveEdit: "$click:.|*saveShadowItem",
 
-		//saveButton:items*edit.item
-		//saveButton:items*queryResult*edit.item
-		saveButton: "$click:.|*saveShadowItem",
-
-		//cancelSaveButton:items*edit.item
-		//cancelSaveButton:items*queryResult*edit.item
-		cancelSaveButton: "$click:.|*resetShadowItem"
+		//cancelEdit:items*edit.item
+		//cancelEdit:items*queryResult*edit.item
+		cancelEdit: "$click:.|*resetShadowItem"
 
 	} );
 
-	hm.newViewEvent( {
+	hm.newJqEvent( {
 
 		editRow: ["click", function( e ) {
 			return $( e.target ).hasClass( "editRow" );
@@ -6807,86 +8444,484 @@
 	} );
 
 //
-/*
- <@depends>
- subscription.js,
- model.js,
- declarative.js,
- template.js,
- https://raw.github.com/cowboy/jquery-bbq/v1.2.1/jquery.ba-bbq.js
- </@depends>
- */
 
 
-	if ($.bbq) {
+	var listOfRouteSegments = [],
 
-		var statefulModelPaths = [],
-			bbqGetState = $.bbq.getState,
-			bbqPushState = $.bbq.pushState,
-			pushModelState = function( path ) {
-				path = isObject( path ) ? toLogicalPath( path.publisher.path ) : path;
-				var model = {};
-				model[path] = rootNode.get( path );
-				bbqPushState( model );
-			};
+		defaultRouteSegments,
 
-		//bookmarkable should be called after model initialization
-		//and before parsing, so that the state in url can be restored
-		hm.bookmarkable = function( /* path1, path2, .. */ ) {
+		initialRouteMatchedByPatterns,
 
-			var i,
-				path,
-				hmState = bbqGetState(),
-				model = {};
+		rPlus = /\+/g,
 
-			for (i = 0; i < arguments.length; i++) {
-				path = arguments[i];
-				if (path in hmState) {
-					//the states in url will override the state in model
-					rootNode.set( path, hmState[path] );
-				}
+		rLeftSquareBracket = /\[/,
 
-				hm.sub( null, path, "afterUpdate", pushModelState );
-				statefulModelPaths.push( path );
-			}
+		rRightSquareBracket = /\]$/,
 
-			for (i = 0; i < statefulModelPaths.length; i++) {
-				path = toLogicalPath( statefulModelPaths[i] );
-				model[path] = rootNode.get( path );
-			}
+		rRightSquareBracketEnd = /\]$/,
 
-			var url = $.param.fragment( location.href, model );
-			if (history.replaceState) {
-				history.replaceState( null, null, url );
+		rSegmentString = /^([^?]*)(\?.*)?$/,
+
+		rQueryString = /^[^?]*\?(.*)$/,
+
+		rStartHash = /^#/,
+
+	//the path of model which is tracked in query string
+		paramPaths = [];
+
+	//convert a param string into an object
+	function deparam( paramString, coerce ) {
+
+		var obj = {},
+			coerce_types = { 'true': true, 'false': true, 'null': null };
+
+		// Iterate over all name=value pairs.
+		$.each( paramString.replace( rPlus, ' ' ).split( '&' ), function( index, value ) {
+			var param = value.split( '=' ),
+				key = decodeURIComponent( param[0] ),
+				val,
+				cur = obj,
+				i = 0,
+
+			// If key is more complex than 'foo', like 'a[]' or 'a[b][c]', split it
+			// into its component parts.
+				keys = key.split( '][' ),
+				keys_last = keys.length - 1;
+
+			// If the first keys part contains [ and the last ends with ], then []
+			// are correctly balanced.
+			if (rLeftSquareBracket.test( keys[0] ) && rRightSquareBracket.test( keys[ keys_last ] )) {
+
+				// Remove the trailing ] from the last keys part.
+				keys[ keys_last ] = keys[ keys_last ].replace( rRightSquareBracketEnd, '' );
+
+				// Split first keys part into two parts on the [ and add them back onto
+				// the beginning of the keys array.
+				keys = keys.shift().split( '[' ).concat( keys );
+
+				keys_last = keys.length - 1;
 			} else {
-				//this is known issue that, the intermediate url cannot be replaced
-				//with the final url prior to IE10
-				location.href = url;
+				// Basic 'foo' style key.
+				keys_last = 0;
 			}
-			return this;
-		};
 
-		hmFn.bookmarkable = function( subPath ) {
+			// Are we dealing with a name=value pair, or just a name?
+			if (param.length === 2) {
+				val = decodeURIComponent( param[1] );
 
-			var model = this;
-
-			hm.bookmarkable.apply( hm, $.map( subPath ? arguments : [""], function( subPath ) {
-				return model.getPath( subPath );
-			} ) );
-
-			return model;
-
-		};
-
-		$( window ).bind( "hashchange", function() {
-			var hmState = bbqGetState();
-			for (var path in hmState) {
-				if (statefulModelPaths.contains( path )) {
-					rootNode.set( path, hmState[path] );
+				// Coerce values.
+				if (coerce) {
+					val = val && !isNaN( val ) ? +val              // number
+						: val === 'undefined' ? undefined         // undefined
+						: coerce_types[val] !== undefined ? coerce_types[val] // true, false, null
+						: val;                                                // string
 				}
+
+				if (keys_last) {
+					// Complex key, build deep object structure based on a few rules:
+					// * The 'cur' pointer starts at the object top-level.
+					// * [] = array push (n is set to array length), [n] = array if n is
+					//   numeric, otherwise object.
+					// * If at the last keys part, set the value.
+					// * For each keys part, if the current level is undefined create an
+					//   object or array based on the type of the next keys part.
+					// * Move the 'cur' pointer to the next level.
+					// * Rinse & repeat.
+					for (; i <= keys_last; i++) {
+						key = keys[i] === '' ? cur.length : keys[i];
+						cur = cur[key] = i < keys_last ?
+							cur[key] || ( keys[i + 1] && isNaN( keys[i + 1] ) ? {} : [] )
+							: val;
+					}
+
+				} else {
+					// Simple key, even simpler rules, since only scalars and shallow
+					// arrays are allowed.
+
+					if (isArray( obj[key] )) {
+						// val is already an array, so push on the next value.
+						obj[key].push( val );
+
+					} else if (obj[key] !== undefined) {
+						// val isn't an array, but since a second value has been specified,
+						// convert val into an array.
+						obj[key] = [ obj[key], val ];
+
+					} else {
+						// val is a scalar.
+						obj[key] = val;
+					}
+				}
+
+			} else if (key) {
+				// No value was defined, so set something meaningful.
+				obj[key] = coerce ? undefined : '';
 			}
 		} );
+
+		return obj;
 	}
+
+	function getHash() {
+		return location.hash.replace( rStartHash, "" );
+	}
+
+	function getCurrentPath() {
+		var hash = getHash();
+		var match = rSegmentString.exec( hash );
+		return match && match[1] || "";
+	}
+
+	function getQueryString() {
+		var hash = getHash();
+		var match = rQueryString.exec( hash );
+		return match && match[1] || "";
+	}
+
+	//get state from query string
+	function getStateFromQueryString() {
+		return deparam( getQueryString() );
+	}
+
+	//handler for model change
+	//this model is tracked in the query string
+	//when model change we want to update the query string
+	function updateQueryStringOnModelChange( e ) {
+
+		var queriedPath = toLogicalPath( e.publisher.path ),
+			model = {};
+
+		model[queriedPath] = rootNode.get( queriedPath );
+
+		//build the hash string
+		//1.call getStageFromQueryString
+		//2.merge the state in query string with the state
+		//3.convert the merged object into query string
+		//4. replace hash's query string with the new query string
+		var queryString = getQueryString();
+		var existingState = deparam( queryString );
+		var newState = $.extend( {}, existingState, model );
+		var newHash = getCurrentPath() + "?" + $.param( newState );
+
+		location.hash = newHash;
+
+	}
+
+	//when model change try to update the route by
+	//enumerating the the list of segment patterns array
+	//if one segment patterns array match the current route, then
+	//enumerate the segment patterns array to find out if
+	//a pattern's model path is equal to the path of the changed model
+	//then update the path with the updated model's value
+	function updatePathOnModelChange( e ) {
+
+		var routeSegment,
+			pathSegments,
+			newPath,
+			queryString,
+			modelPathOfPublisher = e.publisher.path,
+			routeSegments = e.handler.options,
+			path = getCurrentPath();
+
+		if (isPathMatchedByRouteSegments( path, routeSegments )) {
+
+			pathSegments = path.split( "/" );
+
+			for (var j = 0; j < pathSegments.length; j++) {
+
+				routeSegment = routeSegments[j];
+
+				if (routeSegment.startsWith( ":" )) {
+
+					var modelPathInRouteSegment = routeSegment.substr( 1 );
+
+					if (modelPathInRouteSegment == modelPathOfPublisher) {
+
+						pathSegments[j] = rootNode.get( modelPathOfPublisher );
+						newPath = pathSegments.join( "/" );
+						queryString = getQueryString();
+						console.log( queryString ? newPath + "?" + queryString : newPath );
+						location.hash = queryString ? newPath + "?" + queryString : newPath;
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	function isPathMatchedByRouteSegments( path, routeSegments ) {
+
+		var routeSegment,
+			pathSegments;
+
+		if (!path) {
+			return;
+		}
+
+		pathSegments = path.split( "/" );
+
+		if (pathSegments.length !== routeSegments.length) {
+			return;
+		}
+		var isMatched = true;
+
+		for (var i = 0; i < pathSegments.length; i++) {
+
+			routeSegment = routeSegments[i];
+
+			//if routeSegment is model path
+			//don't need to match
+			if (routeSegment.startsWith( ":" )) {
+				continue;
+			}
+
+			if (routeSegment != pathSegments[i]) {
+				isMatched = false;
+				break;
+			}
+		}
+
+		return isMatched;
+	}
+
+	//check if current segment string is matched with segment patterns, and return matched status
+	//if matched also update the model value with the segment value
+	//if this method is called in registration process, also registration handler to subscribe
+	//the change of model, when model change update the segment string
+	function processPathWithRouteSegments( path, routeSegments, isRegistration ) {
+
+		var routeSegment,
+			pathSegments,
+			modelPathInRouteSegment,
+			isPathMatched = isPathMatchedByRouteSegments( path, routeSegments );
+
+		pathSegments = path.split( "/" );
+
+		for (var i = 0; i < routeSegments.length; i++) {
+
+			routeSegment = routeSegments[i];
+
+			if (routeSegment.startsWith( ":" )) {
+				modelPathInRouteSegment = routeSegment.substr( 1 );
+
+				if (isPathMatched) {
+					rootNode.set( modelPathInRouteSegment, pathSegments[i] );
+				}
+
+				if (isRegistration) {
+					hm.sub( null/* null subscriber*/, modelPathInRouteSegment, "afterUpdate", updatePathOnModelChange, routeSegments );
+				}
+			}
+		}
+
+		return isPathMatched;
+	}
+
+	function replaceUrlWithModelState( segmentString, stateInQueryString ) {
+
+		var isEmptyQuery = $.isEmptyObject( stateInQueryString );
+		if (!segmentString && isEmptyQuery) {
+			return;
+		}
+
+		var currentHash = location.hash,
+			urlPath = location.href.replace( currentHash, "" ),
+			newHash = segmentString + (isEmptyQuery ? "" : "?" + $.param( stateInQueryString )),
+			newUrl = urlPath + "#" + newHash;
+
+		if (history.replaceState) {
+			history.replaceState( null, null, newUrl );
+
+		} else {
+			location.href = newUrl;
+
+		}
+	}
+
+	//register the model path which will be tracked through the query string
+	//routeParams should be called after model initialization
+	//but before subscription registration,
+	// so that the state in query string can be restored
+	hm.routeParams = function( /* path1, path2, .. */ ) {
+
+		var i,
+			modelPath,
+			args = arguments,
+			stateInQueryString = getStateFromQueryString();
+
+		//update the model if model path is in query string
+		for (i = 0; i < args.length; i++) {
+
+			modelPath = args[i];
+
+			//if modelPath is in the query string
+			//update the model with the value in query string
+			if (modelPath in stateInQueryString) {
+
+				rootNode.set( modelPath, stateInQueryString[modelPath] );
+			}
+
+			//update query string when model change
+			hm.sub( null, modelPath, "afterUpdate", updateQueryStringOnModelChange );
+			paramPaths.push( args[i] );
+		}
+
+		return this;
+	};
+
+	hmFn.routeParams = function( subPath ) {
+
+		var model = this;
+
+		hm.routeParams.apply(
+
+			hm,
+
+			$.map( subPath ? arguments : [""],
+				function( subPath ) {
+					return model.getPath( subPath );
+				}
+			)
+		);
+
+		return model;
+
+	};
+
+	//register the segment patterns which will be used to match a path
+	//a path is consists of multiple segment
+	// A path like "/public/config/personal", consist of segments ["public", "config", "personal"]
+	//this method try to use a matcher to test each segments
+	//hm.route(segmentMatcher1, segmentMatcher2, ...)
+	//each segment matcher is like [path, matcher]
+	//so it is like
+	//hm.route([path1, matcher1], [path2, matcher2], ...);
+	//example of segment pattern are as following
+	//string eg:  "public", which is a fixed value, which does not mapped to a model
+	//the following mapped to a model
+	//array eg: [ "modelPath", null] or [ "modelPath"], constraint is null
+	//array eg: [ "modelPath", "fixedValue" ], constraint is "fixedValue"
+	//array eg: [ "modelPath", /regex/ ], constraint is regular expression
+	//array eg: [ "modelPath", function (segment) { return boolean; } ], constraint is a function
+	hm.routePath = function( route, isDefault ) {
+
+		var routeSegments = route.split( "/" );
+
+		listOfRouteSegments.push( routeSegments );
+
+		if (isDefault) {
+			defaultRouteSegments = routeSegments;
+		}
+
+		var currentPath = getCurrentPath();
+
+		if (processPathWithRouteSegments( currentPath, routeSegments, true )) {
+			initialRouteMatchedByPatterns = true;
+		}
+	};
+
+	hm.updateRoute = function /*updateModelWhenHashChanged*/() {
+
+
+		//update model when segment string change
+		var i, modelPath,
+			segmentString = getCurrentPath(),
+			stateInQueryString = getStateFromQueryString();
+
+		if (segmentString) {
+			for (i = 0; i < listOfRouteSegments.length; i++) {
+				if (processPathWithRouteSegments( segmentString, listOfRouteSegments[i] )) {
+					//shortcut when the first segment patterns match
+					break;
+				}
+			}
+
+			//if segmentString is empty and it has defaultSegmentPattern
+			//try to build a segment string from the default segment patterns
+		} else if (defaultRouteSegments) {
+
+			var segments = [];
+			for (i = 0; i < defaultRouteSegments.length; i++) {
+
+				var segmentPattern = defaultRouteSegments[i];
+
+				if (isString( segmentPattern )) {
+					segments.push( segmentPattern );
+
+				} else {
+
+					var modelValue = rootNode.get( segmentPattern[0] ) + "";
+					segments.push( modelValue || segmentPattern.defaultValue || "" );
+				}
+			}
+
+			segmentString = segments.join( "/" );
+		}
+
+		//update model when query string change
+		for (modelPath in stateInQueryString) {
+			if (paramPaths.contains( modelPath )) {
+				rootNode.set( modelPath, stateInQueryString[modelPath] );
+			}
+		}
+
+		//update state in query string
+		for (i = 0; i < paramPaths.length; i++) {
+			modelPath = paramPaths[i];
+			stateInQueryString[modelPath] = rootNode.get( modelPath );
+		}
+		//
+		replaceUrlWithModelState( segmentString, stateInQueryString );
+	};
+
+	//update model when hash change
+	$( window ).bind( "hashchange", hm.updateRoute );
+
+	$( function() {
+
+		//try to build the initial hash from the model
+
+		var i, route = "";
+
+		//if there is default segment pattern and the initial segment string
+		//is not matched by any patterns, then use the default segment pattern
+		//to build the segment string
+		if (defaultRouteSegments && !initialRouteMatchedByPatterns) {
+
+			var pathSegments = [];
+			for (i = 0; i < defaultRouteSegments.length; i++) {
+				var routeSegment = defaultRouteSegments[i];
+
+				if (routeSegment.startsWith( ":" )) {
+
+					pathSegments.push( rootNode.get( routeSegment.substr( 1 ) ) + "" );
+
+				} else {
+
+					pathSegments.push( routeSegment );
+				}
+			}
+
+			route = pathSegments.join( "/" );
+
+		} else {
+
+			route = getCurrentPath();
+		}
+
+		var stateInQueryString = getStateFromQueryString();
+
+		//update state in query string
+		for (i = 0; i < paramPaths.length; i++) {
+			var modelPath = paramPaths[i];
+			stateInQueryString[modelPath] = rootNode.get( modelPath );
+		}
+		replaceUrlWithModelState( route, stateInQueryString );
+	} );
+
+	//#debug
+
+	//#end_debug
 
 //
 //<@depends>subscription.js, model.js, declarative.js, template.js</@depends>
@@ -6895,16 +8930,16 @@
 
 
 	defaultOptions.selectedClass = "selected";
-	defaultOptions.tabViewAttr = "data-tabView";
-	defaultOptions.tabLinkAttr = "data-tabLink";
-	defaultOptions.tabGroupAttr = "data-tabGroup";
+	defaultOptions.tabViewAttr = "tab-view";
+	defaultOptions.tabLinkAttr = "tab-link";
+	defaultOptions.tabContainerNameAttr = "tab-container-name";
 
-	hm.workflowType( {
+	hm.workflow( {
 
 		//a tab can be tabView or tabLink
-		highlightTab: function( e ) {
+		selectTab: function( e ) {
 			var tabId = this.attr( defaultOptions.tabViewAttr ) || this.attr( defaultOptions.tabLinkAttr ),
-				selectedClass = e.workflow.options || defaultOptions.selectedClass;
+				selectedClass = e.handler.options;
 
 			if (e.publisher.get() == tabId) {
 				this.addClass( selectedClass );
@@ -6914,13 +8949,13 @@
 		},
 
 		//a tab can be tabView or tabLink
-		highlightTabInContainer: function( e ) {
+		selectTabInContainer: function( e ) {
 			var selectedTabId = e.publisher.get(),
 				tabViewAttr = defaultOptions.tabViewAttr,
 				tabLinkAttr = defaultOptions.tabLinkAttr,
-				options = e.workflow.options,
+				options = e.handler.options,
 				tabLinkAndTabViewSelector = options.selector,
-				selectedClass = options.selectedClass || defaultOptions.selectedClass;
+				selectedClass = options.selectedClass;
 
 			this.find( tabLinkAndTabViewSelector ).andSelf().each( function( index, elem ) {
 				var $elem = $( elem ),
@@ -6935,65 +8970,89 @@
 		}
 	} );
 
-	//a tab can be tabView or tabLink
-	//for tabLink use <li data-tabLink="news" data-sub="tab:category">News</li>
-	//for tabView use <div data-tabView="news" data-sub="tab:category">contents</div>
-	hm.groups.tab = function( elem, path, group, selectedClass ) {
-
-		group.appendSub( elem, path, "init afterUpdate", "*highlightTab", selectedClass );
-
-		if ($( elem ).attr( defaultOptions.tabLinkAttr )) {
-			group.appendSub( path, elem, "click", handleTabLinkClick, defaultOptions.tabLinkAttr );
-		}
-
-	};
-
-	function handleTabLinkClick ( e ) {
-		this.set( e.publisher.attr( e.workflow.options ) );
+	function handleTabLinkClick( e ) {
+		//this is the subscriber, which is the model
+		//e.handler.options is the tab id
+		this.set( e.publisher.attr( e.handler.options ) );
 		e.preventDefault();
 		e.stopPropagation();
 
 	}
 
-	//a tabContainer can hold tabLink or tabView
-	//it can be
-	//<ul data-sub="tabContainer:category">
-	//	<li data-tabLink="news">News</li>
-	//	<li data-tabLink="opinion">Opinion</li>
-	//	<li data-tabLink="sports">Sports</li>
-	//</ul>
+	//a tab can be tabView or tabLink
+	//for tabLink use <li tab-link="news" tab="category">News</li>
+	//if your selected class is not "selected" but "active" use
+	// <li tab-link="news" tab="category|active">News</li>
 	//
-	//<div class="tabs" data-sub="tabContainer:category">
-	//	<div data-tabView="news">content</div>
-	//	<div data-tabView="opinion">content</div>
-	//</div>
-	hm.groups.tabContainer = function( elem, path, group, tabGroupAndSelectedClass ) {
+	//for tabView use <div tab-view="news" tab="category">contents</div>
+	//or <div tab-view="news" tab="category|active">contents</div>
+	bindings( {
 
-		tabGroupAndSelectedClass = tabGroupAndSelectedClass || "";
-		tabGroupAndSelectedClass = tabGroupAndSelectedClass.split( "," );
+		tab: function( elem, path, binding, selectedClass ) {
 
-		var tabViewAttr = defaultOptions.tabViewAttr,
-			tabLinkAttr = defaultOptions.tabLinkAttr,
-			tabGroupAttr = defaultOptions.tabGroupAttr,
-			tabGroupSelector = tabGroupAndSelectedClass[0] ? "[" + tabGroupAttr + "='" + tabGroupAndSelectedClass[0] + "']" : "",
-			tabLinkSelector = "[" + tabLinkAttr + "]" + tabGroupSelector,
-			tabLinkAndTabViewSelector = tabLinkSelector + ",[" + tabViewAttr + "]" + tabGroupSelector;
+			selectedClass = selectedClass || defaultOptions.selectedClass;
 
-		//update the tab model with the tabLink when click
-		group.appendSub( path, elem, "click", handleTabLinkClick, tabLinkAttr, tabLinkSelector /*delegateSelector*/ );
+			binding.appendSub( elem, path, "init afterUpdate", "*selectTab", selectedClass );
 
+			if ($( elem ).attr( defaultOptions.tabLinkAttr )) {
+				binding.appendSub( path, elem, "click", handleTabLinkClick, defaultOptions.tabLinkAttr );
+			}
+
+		},
+
+		//a tabContainer can hold tabLink or tabView
+		//it can be
 		//
-		//highlight the tab when the path change
-		group.appendSub( elem, path, "init100 afterUpdate", "*highlightTabInContainer", {
-			selector: tabLinkAndTabViewSelector,
-			selectedClass: tabGroupAndSelectedClass[1]
-		} );
-	};
+		//<ul tab-container="category">
+		//	<li tab-link="news">News</li>
+		//	<li tab-link="opinion">Opinion</li>
+		//	<li tab-link="sports">Sports</li>
+		//</ul>
+		//
+		//<div class="tabs" tab-container="category">
+		//	<div tab-view="news">content</div>
+		//	<div tab-view="opinion">content</div>
+		//</div>
+		//options usage
+		//tab-container="category|containerName,selectedClass"
+		//if you have tab container nested within another tab container
+		//you can use container name to specify which container it is in
+		tabContainer: function( elem, path, context, options ) {
+
+			options = options || "";
+			options = options.split( "," );
+
+			var tabViewAttr = defaultOptions.tabViewAttr,
+				tabLinkAttr = defaultOptions.tabLinkAttr,
+				tabContainerNameAttr = defaultOptions.tabContainerNameAttr,
+				containerName = options[0],
+				selectedClass = options[1],
+
+				tabContainerSelector = containerName ?
+					"[" + tabContainerNameAttr + "='" + containerName + "']" //with explicit tab container name
+					: "", //no tab container name
+
+				tabLinkSelector = "[" + tabLinkAttr + "]" + tabContainerSelector,
+
+				tabLinkAndTabViewSelector = tabLinkSelector + ",[" + tabViewAttr + "]" + tabContainerSelector;
+
+			//update the tab model with the tabLink when click
+			context.appendSub( path, elem, "click", handleTabLinkClick, tabLinkAttr, tabLinkSelector /*delegateSelector*/ );
+
+			//
+			//highlight the tab when the model change
+			context.appendSub( elem, path, "init100 afterUpdate", "*selectTabInContainer", {
+				selector: tabLinkAndTabViewSelector,
+				selectedClass: selectedClass || defaultOptions.selectedClass
+			} );
+		}
+	} );
 
 //data-sub="@app:appName,options"
 
 
-	var appStore = {},
+	var rDot = /\./g,
+		appStore = {},
 	//used to match "appName,options"
 		rAppOptions = /^([^,]+)(,(.+))?$/,
 		rLoadAppOptions = /^([^,]+)(,([^,]+))?(,(.+))?$/;
@@ -7002,120 +9061,155 @@
 
 	hm.App = hm.Class.extend(
 
+		//instance members
 		{
+			//exists simply for ensure app must have a name
+			initialize: function( app ) {
+
+				if (!app.name) {
+					throw "An app must have a name.";
+				}
+				this.callBase( "initialize", app );
+
+			},
+
 			//it add additional logic beside the original load method
 			//such as instance counting, instance association with the container
 			//prepare to unload from the container
-			bootstrap: function(viewContainer, modelContainer, options) {
-				if (!viewContainer || !this.loadable()) {
+			load: function( $viewContainer, hmModelContainer, options ) {
+				if (!$viewContainer || !this.loadable()) {
 					return;
 				}
 				var app = this,
 					buildModelResult,
 					appName = app.name,
-					appInstance = instanceManager.get( viewContainer, appName );
+					appInstance = instanceManager.get( $viewContainer[0], appName );
 
 				//ensure that an application can be loaded into a container only once
-				if (!appInstance) {
-					if (app.buildRootModel !== false) {
-						buildModelResult = app.buildRootModel( modelContainer, options );
+				if (appInstance) {
+					return;
+				}
 
-					}
+				if (app.loadModel) {
+					buildModelResult = app.loadModel( hmModelContainer, options );
 
-					if (isPromise( buildModelResult )) {
-						buildModelResult.done( function() {
-							app.buildRootView( viewContainer, modelContainer );
+				}
 
-						} );
-					} else {
-						app.buildRootView( viewContainer, modelContainer );
+				var continuation = function() {
 
-					}
-
-					instanceManager.add( viewContainer, modelContainer, appName, app );
-
-					//pass appName using namespace of event name to the event handler
-					$( viewContainer ).bind( "shutdown." + appName, function(e) {
-						app.shutdown( this, e.namespace );
+					app.loadView( $viewContainer, hmModelContainer );
+					instanceManager.add( $viewContainer[0], hmModelContainer.path, appName, app );
+					$viewContainer.bind( "exitApp." + appName, function( e ) {
+						app.unload( $( this ) );
 						e.stopPropagation();
 					} );
 
 					app.instanceCount++;
+					app.uid++;
+				};
+
+				if (isPromise( buildModelResult )) {
+
+					buildModelResult.done( continuation );
+
+				} else {
+					continuation();
+
 				}
+
 			},
 
-			shutdown: function(viewContainer, modelContainer) {
+			unload: function( $viewContainer ) {
 
 				var appName = this.name;
+				var appInstance = instanceManager.get( $viewContainer[0], appName );
 
-				this.destroyRootView( viewContainer );
-				this.destroyRootModel( modelContainer );
+				this.unloadView( $viewContainer );
 
-				instanceManager.remove( viewContainer, appName );
+				this.unloadModel( appInstance.modelNode );
 
-				$( viewContainer ).unbind( "shutdown." + appName );
+				instanceManager.remove( $viewContainer[0], appName );
+
+				$viewContainer.unbind( "exitApp." + appName );
 
 				this.instanceCount--;
 			},
 
 			//function( modelContainer, options ) {}
-			fetchRootData: null,
+			getInitialData: null,
 
-			buildRootModel: function(modelContainer, options) {
+			//default implementation of loadModel is to call
+			//app.getInitialData() and put the result into model
+			//
+			//You can set loadModel to null to specify that
+			// there is no need to build model
+			loadModel: function( hmModelContainer, options ) {
 				var app = this;
-				if (!app.fetchRootData) {
-					throw "app.fetchRootData is not implemented";
+				if (!app.getInitialData) {
+					throw "app.getInitialData is not implemented";
 				}
 
-				var data = app.fetchRootData( modelContainer, options );
+				var data = app.getInitialData( hmModelContainer, options );
 
 				if (isPromise( data )) {
-					return data.done( function(data) {
-						hm.set( app.getNamespace( modelContainer ), data );
+					return data.done( function( data ) {
+						app.getModelNode( hmModelContainer ).set( data );
 					} );
 				} else {
-					hm.set( app.getNamespace( modelContainer ), data );
+					app.getModelNode( hmModelContainer ).set( data );
 				}
 
 			},
 
-			destroyRootModel: function(modelContainer) {
-				if (this.buildRootModel !== false) {
-					hm( modelContainer ).del( this.name );
+			unloadModel: function( modelNamespace ) {
+				if (this.loadModel) {
+					hm.del( modelNamespace );
 				}
 			},
 
-			buildRootView: function(viewContainer, modelContainer) {
+			//the default loadView will create a container
+			//<div appname="xxx" ns="xxx"></div>
+			loadView: function( $viewContainer, hmModelContainer ) {
 
-				$( viewContainer ).renderContent(
+				var namespace = this.getModelNode( hmModelContainer ).path,
+					viewWrapper = $( "<div></div>" )
+						.attr( "appname", this.name )
+						.attr( "ns", namespace );
+
+				viewWrapper.hmData( "ns", namespace );
+
+				viewWrapper.appendTo( $viewContainer ).tmpl(
 					this.getTemplateOptions(),
-					this.getNamespace( modelContainer ) );
+					namespace );
 
 			},
 
-			destroyRootView: function(viewContainer) {
-				$( viewContainer ).empty();
+			unloadView: function( $viewContainer ) {
+				$viewContainer.find( "> [appname='" + this.name + "']" ).remove();
 			},
 
+			//templateOptions is about template id
+			//by default you can get templateOptions property or
+			//the application name as templateOptions
 			getTemplateOptions: function() {
 				return this.templateOptions || this.name;
 
 			},
 
-			getNamespace: function(modelContainer) {
-				return hm( modelContainer ).getPath( this.subPath || this.name );
-			},
-
-			initialize: function(seed) {
-
-				if (!seed.name) {
-					throw "An app must have a name.";
+			getModelNode: function( hmModelContainer ) {
+				var subPath = this.subPath || this.name.replace( rDot, "_" );
+				//if we have more than one instance, the subPath need to be
+				//be suffix with an uid to make this namespace unique
+				if (this.uid) {
+					subPath = subPath + this.uid;
 				}
-				this.callBase( "initialize", seed );
+				return hmModelContainer.cd( subPath );
 
 			},
 
 			instanceCount: 0,
+
+			uid: 0,
 
 			//if we want to use singleton use the following
 			//		loadable: function() {
@@ -7125,100 +9219,95 @@
 
 			templateOptions: null,
 
+			//path that wrap this model,
+			//but this should not be used by consumer
 			subPath: null
 
 
 		},
 
+		//static members
 		{
 
-			//hm.App.register({
+			//hm.App.add({
 			//  name: "gmail", //you must have a name
 			//  load: function (viewContainer, modelContainer, options) {},
-			//  unload: function (viewContainer, modelContainer) {}, //optional
+			//  unapp: function (viewContainer, modelContainer) {}, //optional
 			//  //optional, by default it is not loadable if it has been loaded once
 			//  //if it is loadable: true , it means it is always loadable
 			//  loadable: function () {},
 			// });
-			add: function(app) {
+			add: function( app ) {
 				if (!(app instanceof this)) {
 					app = this( app );
 				}
 				appStore[app.name] = app;
 			},
 
-			remove: function(appName) {
+			remove: function( appName ) {
 				if (appStore[appName] && !appStore[appName].instanceCount) {
 					delete appStore[appName];
 				}
 			},
 
-			get: function(appName) {
+			get: function( appName ) {
 				return appStore[appName];
+			},
+
+			//fetch the definition of the application
+			loadDefinition: function( appName ) {
+				return _loader.load( appName + ".app" );
 			},
 
 			//support the following feature
 			//by default container is body, if container is missing
-			//hm.App.bootstrap(appName);
+			//hm.App.loadApp(appName);
 			//
-			//hm.App.bootstrap(appName, viewContainer); //viewContainer is jQuery
-			//hm.App.bootstrap(appName, modelContainer); //modelContainer is string
+			//hm.App.loadApp(appName, viewContainer); //viewContainer is jQuery
+			//hm.App.loadApp(appName, modelContainer); //modelContainer is string
 			//
 			//container is jQuery object, or DOM element
 			//appName is string,
 			//options is optional
-			bootstrap: function(appName, viewContainer, modelContainer, options) {
+			loadApp: function( appName, $viewContainer, hmModelContainer, options ) {
 
 				if (arguments.length == 1) {
 
-					viewContainer = document.body;
-					modelContainer = "";
+					$viewContainer = $( document.body );
+					hmModelContainer = rootNode;
 
 				} else if (arguments.length == 2) {
 
-					if (viewContainer.jquery) {
+					hmModelContainer = rootNode;
 
-						viewContainer = viewContainer[0];
-						modelContainer = "";
-
-					} else if (isString( viewContainer )) {
-
-						modelContainer = viewContainer;
-						viewContainer = document.body;
-						modelContainer = "";
-					}
 				}
 
 				var app = appStore[appName];
 
 				if (app) {
 
-					app.bootstrap( viewContainer, modelContainer, options );
+					app.load( $viewContainer, hmModelContainer, options );
 
 				} else {
 
-					if (!this.fetch) {
-						throw "hm.App.fetch is not implemented";
-					}
-
-					this.fetch( appName ).done( function() {
-						appStore[appName].bootstrap( viewContainer, modelContainer, options );
+					this.loadDefinition( appName ).done( function() {
+						appStore[appName].load( $viewContainer, hmModelContainer, options );
 					} );
 				}
 			},
 
 			//container by default is document.body
-			//hm.App.shutdown(appName)
-			//hm.App.shutdown(container, appName);
-			shutdown: function(appName, viewContainer) {
+			//hm.App.unloadApp(appName)
+			//hm.App.unloadApp(container, appName);
+			unloadApp: function( appName, $viewContainer ) {
 				if (isUndefined( appName )) {
-					appName = viewContainer;
-					viewContainer = document.body;
+					appName = $viewContainer;
+					$viewContainer = $( "body" );
 				}
 
-				var appInstance = instanceManager.get( viewContainer, appName );
+				var appInstance = instanceManager.get( $viewContainer, appName );
 				if (appInstance) {
-					appInstance.app.shutdown( viewContainer, appInstance.modelContainer );
+					appInstance.app.unload( $viewContainer );
 				}
 			}
 
@@ -7226,80 +9315,85 @@
 
 	var instanceManager = {
 
-		get: function(container, appName) {
-			return this.appData( container )[appName];
+		get: function( viewContainerElem, appName ) {
+			return this.appData( viewContainerElem )[appName];
 		},
 
-		add: function(viewContainer, modelContainer, appName, app) {
-			this.appData( viewContainer )[appName] = {
+		add: function( viewContainerElem, modelContainerPath, appName, app ) {
+			this.appData( viewContainerElem )[appName] = {
 				app: app,
-				modelContainer: modelContainer
+				modelNode: app.getModelNode( hm( modelContainerPath ) ),
+				modelContainer: modelContainerPath
 			};
 		},
 
-		remove: function(container, appName) {
-			delete this.appData( container )[appName];
+		remove: function( viewContainerElem, appName ) {
+			delete this.appData( viewContainerElem )[appName];
 		},
 
-		appData: function(container, readOnly) {
-			var appData = $( container ).hmData( "app" );
+		appData: function( viewContainerElem, readOnly ) {
+			var appData = $( viewContainerElem ).hmData( "app" );
 			if (!readOnly && !appData) {
 				appData = { };
-				$( container ).hmData( "app", appData );
+				$( viewContainerElem ).hmData( "app", appData );
 			}
 			return appData;
 		}
 	};
 
-	extend( hm.groups, {
+	bindings( {
+		//app="/|gmail,options"
 		//data-sub="app:/|gmail,options"
-		app: function(elem, path, subscriptions, options) {
+		app: function( elem, path, context, options ) {
 
-			var optionParts = rAppOptions.exec( $.trim( options ) ),
-				appName = optionParts[1],
-				otherOptions = optionParts[3];
+			var match = rAppOptions.exec( $.trim( options ) ),
+				appName = match[1],
+				appOptions = match[3];
 
-			hm.App.bootstrap( appName, elem, path, otherOptions );
+			hm.App.loadApp( appName, $( elem ), hm( path ), appOptions );
+		},
+
+		//exit-app="_|gmail"
+		//unload app from parent container
+		//data-sub="exitApp:_|gmail"
+		exitApp: function( elem, parseContext, binding, options ) {
+			$( elem ).mapEvent( "click", "exitApp." + options );
 		},
 
 		//load an app when click
-		//data-sub="bootstrap:/|gmail,#containerId,options"
-		bootstrap: function(elem, path, subscripiptions, options) {
+		//load-app="/|gmail,#containerId,options"
+		//data-sub="loadApp:/|gmail,#containerId,options"
+		loadApp: function( elem, path, context, options ) {
 
 			var optionParts = rLoadAppOptions.exec( $.trim( options ) ),
 				appName = optionParts[1],
-				container = $( optionParts[3] )[0],
+				$viewContainer = $( optionParts[3] ),
 				otherOptions = optionParts[5];
 
 			$( elem ).click( function() {
-				hm.App.bootstrap( appName, container, path, otherOptions );
+				hm.App.loadApp( appName, $viewContainer, hm( path ), otherOptions );
 			} );
 		},
 
+		//unloadApp
 		//unload an app when click
-		//data-sub="shutdown:_|gmail,#container"
-		shutdown: function(elem, path, subscripiptions, options) {
+		//unload-app=":_|gmail,#container"
+		//data-sub="unloadApp:_|gmail,#container"
+		unloadApp: function( elem, path, context, options ) {
 
 			var optionParts = rLoadAppOptions.exec( $.trim( options ) ),
 				appName = optionParts[1],
-				container = $( optionParts[3] )[0];
+				$viewContainer = $( optionParts[3] );
 
 			$( elem ).click( function() {
-				hm.App.shutdown( appName, container );
+				hm.App.unloadApp( appName, $viewContainer );
 			} );
-		},
-
-		//unload app from parent container
-		//data-sub="selfShutdown:_|gmail"
-		selfShutdown: function(elem, parseContext, subscriptions, options) {
-			$( elem ).mapEvent( "click", "shutdown." + options );
 		}
-
 	} );
 
 	var _cleanDataForApp = $.cleanData;
 
-	$.cleanData = function(elems) {
+	$.cleanData = function( elems ) {
 		$( elems ).each( function() {
 			var appData = instanceManager.appData( this, true );
 			if (appData) {
@@ -7313,16 +9407,19 @@
 		_cleanDataForApp( elems );
 	};
 
-	if (!isUndefined( matrix )) {
+	_loader( "app", "js", {
+		url: function( moduleId ) {
+			//if module id is like *hello, then it is widget
+			var fileName = _loader.fileName( moduleId );
+			return fileName.startsWith( "apk." ) ?
+				//if app is package is apk, then load it
+				//in apk folder
+				"apk/" + fileName.substr( 4 ) + "/main.js" :
 
-		matrix.loader.set( "app", "js", {
-			url: "folder"
-		} );
-
-		hm.App.fetch = function(appName) {
-			return matrix( appName + ".app" );
-		};
-	}
+				//otherwise load in app folder
+				"app/" + fileName + ".js";
+		}
+	} );
 
 
 
