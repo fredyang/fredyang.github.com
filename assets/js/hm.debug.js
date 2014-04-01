@@ -8473,10 +8473,9 @@
 
         rQueryString = /^[^?]*\?(.*)$/,
 
-        rStartHash;
-
+        rStartHash,
     //the path of model which is tracked in query string
-    paramPaths = [];
+        paramPaths = [];
 
     //convert a param string into an object
     function deparam(paramString, coerce) {
@@ -8570,7 +8569,7 @@
 
         return obj;
     }
-    
+
     function getHash() {
         rStartHash = rStartHash || new RegExp("^#" + defaultOptions.hashPrefix + defaultOptions.routePrefix);
         return location.hash.replace(rStartHash, "");
