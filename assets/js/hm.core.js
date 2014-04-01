@@ -2,7 +2,7 @@
   * Hm.js JavaScript Library v0.1pre
   * © Fred Yang - http://semanticsworks.com
   * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-  * Date: Sun Jan 12 13:11:24 2014 -0500
+  * Date: Tue Apr 1 00:31:20 2014 -0400
   */
 (function( $, window, undefined ) {
 	"use strict";
@@ -5634,6 +5634,12 @@
 			}
 		],
 
+        //the class name can be passed as options parameter
+        //or the class name is the value of the model
+        //
+        //toggle-class="model"
+        //or
+        //<p !afterUpdate="isHappy|*fakeGet toggleClass*happy" ></p>
 		toggleClass: [
 
 			"!init after*:.|*toggleClass", {
