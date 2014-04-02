@@ -1,8 +1,8 @@
  /*!
-  * Hm.js JavaScript Library v0.1pre
+  * Hm.js JavaScript Library v1.0.0pre
   * © Fred Yang - http://semanticsworks.com
   * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-  * Date: Mon Mar 31 23:34:56 2014 -0400
+  * Date: Wed Apr 2 00:50:28 2014 -0400
   */
 (function( $, window, undefined ) {
 	"use strict";
@@ -8028,478 +8028,481 @@
 //
 
 
-	var listOfRouteSegments = [],
-
-		defaultRouteSegments,
-
-		initialRouteMatchedByPatterns,
-
-		rPlus = /\+/g,
-
-		rLeftSquareBracket = /\[/,
-
-		rRightSquareBracket = /\]$/,
-
-		rRightSquareBracketEnd = /\]$/,
-
-		rSegmentString = /^([^?]*)(\?.*)?$/,
-
-		rQueryString = /^[^?]*\?(.*)$/,
-
-		rStartHash = /^#/,
-
-	//the path of model which is tracked in query string
-		paramPaths = [];
-
-	//convert a param string into an object
-	function deparam( paramString, coerce ) {
-
-		var obj = {},
-			coerce_types = { 'true': true, 'false': true, 'null': null };
-
-		// Iterate over all name=value pairs.
-		$.each( paramString.replace( rPlus, ' ' ).split( '&' ), function( index, value ) {
-			var param = value.split( '=' ),
-				key = decodeURIComponent( param[0] ),
-				val,
-				cur = obj,
-				i = 0,
-
-			// If key is more complex than 'foo', like 'a[]' or 'a[b][c]', split it
-			// into its component parts.
-				keys = key.split( '][' ),
-				keys_last = keys.length - 1;
-
-			// If the first keys part contains [ and the last ends with ], then []
-			// are correctly balanced.
-			if (rLeftSquareBracket.test( keys[0] ) && rRightSquareBracket.test( keys[ keys_last ] )) {
-
-				// Remove the trailing ] from the last keys part.
-				keys[ keys_last ] = keys[ keys_last ].replace( rRightSquareBracketEnd, '' );
-
-				// Split first keys part into two parts on the [ and add them back onto
-				// the beginning of the keys array.
-				keys = keys.shift().split( '[' ).concat( keys );
-
-				keys_last = keys.length - 1;
-			} else {
-				// Basic 'foo' style key.
-				keys_last = 0;
-			}
-
-			// Are we dealing with a name=value pair, or just a name?
-			if (param.length === 2) {
-				val = decodeURIComponent( param[1] );
-
-				// Coerce values.
-				if (coerce) {
-					val = val && !isNaN( val ) ? +val              // number
-						: val === 'undefined' ? undefined         // undefined
-						: coerce_types[val] !== undefined ? coerce_types[val] // true, false, null
-						: val;                                                // string
-				}
-
-				if (keys_last) {
-					// Complex key, build deep object structure based on a few rules:
-					// * The 'cur' pointer starts at the object top-level.
-					// * [] = array push (n is set to array length), [n] = array if n is
-					//   numeric, otherwise object.
-					// * If at the last keys part, set the value.
-					// * For each keys part, if the current level is undefined create an
-					//   object or array based on the type of the next keys part.
-					// * Move the 'cur' pointer to the next level.
-					// * Rinse & repeat.
-					for (; i <= keys_last; i++) {
-						key = keys[i] === '' ? cur.length : keys[i];
-						cur = cur[key] = i < keys_last ?
-							cur[key] || ( keys[i + 1] && isNaN( keys[i + 1] ) ? {} : [] )
-							: val;
-					}
-
-				} else {
-					// Simple key, even simpler rules, since only scalars and shallow
-					// arrays are allowed.
-
-					if (isArray( obj[key] )) {
-						// val is already an array, so push on the next value.
-						obj[key].push( val );
-
-					} else if (obj[key] !== undefined) {
-						// val isn't an array, but since a second value has been specified,
-						// convert val into an array.
-						obj[key] = [ obj[key], val ];
-
-					} else {
-						// val is a scalar.
-						obj[key] = val;
-					}
-				}
-
-			} else if (key) {
-				// No value was defined, so set something meaningful.
-				obj[key] = coerce ? undefined : '';
-			}
-		} );
-
-		return obj;
-	}
-
-	function getHash() {
-		return location.hash.replace( rStartHash, "" );
-	}
-
-	function getCurrentPath() {
-		var hash = getHash();
-		var match = rSegmentString.exec( hash );
-		return match && match[1] || "";
-	}
-
-	function getQueryString() {
-		var hash = getHash();
-		var match = rQueryString.exec( hash );
-		return match && match[1] || "";
-	}
-
-	//get state from query string
-	function getStateFromQueryString() {
-		return deparam( getQueryString() );
-	}
-
-	//handler for model change
-	//this model is tracked in the query string
-	//when model change we want to update the query string
-	function updateQueryStringOnModelChange( e ) {
-
-		var queriedPath = toLogicalPath( e.publisher.path ),
-			model = {};
-
-		model[queriedPath] = rootNode.get( queriedPath );
-
-		//build the hash string
-		//1.call getStageFromQueryString
-		//2.merge the state in query string with the state
-		//3.convert the merged object into query string
-		//4. replace hash's query string with the new query string
-		var queryString = getQueryString();
-		var existingState = deparam( queryString );
-		var newState = $.extend( {}, existingState, model );
-		var newHash = getCurrentPath() + "?" + $.param( newState );
+    defaultOptions.hashPrefix = "!";
+    defaultOptions.routePrefix = "/";
+
+    var listOfRouteSegments = [],
+
+        defaultRouteSegments,
+
+        initialRouteMatchedByPatterns,
+
+        rPlus = /\+/g,
+
+        rLeftSquareBracket = /\[/,
+
+        rRightSquareBracket = /\]$/,
+
+        rRightSquareBracketEnd = /\]$/,
+
+        rSegmentString = /^([^?]*)(\?.*)?$/,
+
+        rQueryString = /^[^?]*\?(.*)$/,
+
+        rStartHash,
+    //the path of model which is tracked in query string
+        paramPaths = [];
+
+    //convert a param string into an object
+    function deparam(paramString, coerce) {
+
+        var obj = {},
+            coerce_types = { 'true': true, 'false': true, 'null': null };
+
+        // Iterate over all name=value pairs.
+        $.each(paramString.replace(rPlus, ' ').split('&'), function (index, value) {
+            var param = value.split('='),
+                key = decodeURIComponent(param[0]),
+                val,
+                cur = obj,
+                i = 0,
+
+            // If key is more complex than 'foo', like 'a[]' or 'a[b][c]', split it
+            // into its component parts.
+                keys = key.split(']['),
+                keys_last = keys.length - 1;
+
+            // If the first keys part contains [ and the last ends with ], then []
+            // are correctly balanced.
+            if (rLeftSquareBracket.test(keys[0]) && rRightSquareBracket.test(keys[ keys_last ])) {
+
+                // Remove the trailing ] from the last keys part.
+                keys[ keys_last ] = keys[ keys_last ].replace(rRightSquareBracketEnd, '');
+
+                // Split first keys part into two parts on the [ and add them back onto
+                // the beginning of the keys array.
+                keys = keys.shift().split('[').concat(keys);
+
+                keys_last = keys.length - 1;
+            } else {
+                // Basic 'foo' style key.
+                keys_last = 0;
+            }
+
+            // Are we dealing with a name=value pair, or just a name?
+            if (param.length === 2) {
+                val = decodeURIComponent(param[1]);
+
+                // Coerce values.
+                if (coerce) {
+                    val = val && !isNaN(val) ? +val              // number
+                        : val === 'undefined' ? undefined         // undefined
+                        : coerce_types[val] !== undefined ? coerce_types[val] // true, false, null
+                        : val;                                                // string
+                }
+
+                if (keys_last) {
+                    // Complex key, build deep object structure based on a few rules:
+                    // * The 'cur' pointer starts at the object top-level.
+                    // * [] = array push (n is set to array length), [n] = array if n is
+                    //   numeric, otherwise object.
+                    // * If at the last keys part, set the value.
+                    // * For each keys part, if the current level is undefined create an
+                    //   object or array based on the type of the next keys part.
+                    // * Move the 'cur' pointer to the next level.
+                    // * Rinse & repeat.
+                    for (; i <= keys_last; i++) {
+                        key = keys[i] === '' ? cur.length : keys[i];
+                        cur = cur[key] = i < keys_last ?
+                            cur[key] || ( keys[i + 1] && isNaN(keys[i + 1]) ? {} : [] )
+                            : val;
+                    }
+
+                } else {
+                    // Simple key, even simpler rules, since only scalars and shallow
+                    // arrays are allowed.
+
+                    if (isArray(obj[key])) {
+                        // val is already an array, so push on the next value.
+                        obj[key].push(val);
+
+                    } else if (obj[key] !== undefined) {
+                        // val isn't an array, but since a second value has been specified,
+                        // convert val into an array.
+                        obj[key] = [ obj[key], val ];
+
+                    } else {
+                        // val is a scalar.
+                        obj[key] = val;
+                    }
+                }
+
+            } else if (key) {
+                // No value was defined, so set something meaningful.
+                obj[key] = coerce ? undefined : '';
+            }
+        });
+
+        return obj;
+    }
+
+    function getHash() {
+        rStartHash = rStartHash || new RegExp("^#" + defaultOptions.hashPrefix + defaultOptions.routePrefix);
+        return location.hash.replace(rStartHash, "");
+    }
+
+    function getCurrentPath() {
+        var hash = getHash();
+        var match = rSegmentString.exec(hash);
+        return match && match[1] || "";
+    }
+
+    function getQueryString() {
+        var hash = getHash();
+        var match = rQueryString.exec(hash);
+        return match && match[1] || "";
+    }
+
+    //get state from query string
+    function getStateFromQueryString() {
+        return deparam(getQueryString());
+    }
+
+    //handler for model change
+    //this model is tracked in the query string
+    //when model change we want to update the query string
+    function updateQueryStringOnModelChange(e) {
+
+        var queriedPath = toLogicalPath(e.publisher.path),
+            model = {};
+
+        model[queriedPath] = rootNode.get(queriedPath);
+
+        //build the hash string
+        //1.call getStageFromQueryString
+        //2.merge the state in query string with the state
+        //3.convert the merged object into query string
+        //4. replace hash's query string with the new query string
+        var queryString = getQueryString();
+        var existingState = deparam(queryString);
+        var newState = $.extend({}, existingState, model);
+        var newHash = getCurrentPath() + "?" + $.param(newState);
+
+        location.hash = defaultOptions.hashPrefix + defaultOptions.routePrefix + newHash;
+
+    }
+
+    //when model change try to update the route by
+    //enumerating the the list of segment patterns array
+    //if one segment patterns array match the current route, then
+    //enumerate the segment patterns array to find out if
+    //a pattern's model path is equal to the path of the changed model
+    //then update the path with the updated model's value
+    function updatePathOnModelChange(e) {
+
+        var routeSegment,
+            pathSegments,
+            newPath,
+            queryString,
+            modelPathOfPublisher = e.publisher.path,
+            routeSegments = e.handler.options,
+            path = getCurrentPath();
+
+        if (isPathMatchedByRouteSegments(path, routeSegments)) {
+
+            pathSegments = path.split("/");
+
+            for (var j = 0; j < pathSegments.length; j++) {
+
+                routeSegment = routeSegments[j];
+
+                if (routeSegment.startsWith(":")) {
+
+                    var modelPathInRouteSegment = routeSegment.substr(1);
+
+                    if (modelPathInRouteSegment == modelPathOfPublisher) {
+
+                        pathSegments[j] = rootNode.get(modelPathOfPublisher);
+                        newPath = pathSegments.join("/");
+                        queryString = getQueryString();
+                        //console.log( queryString ? newPath + "?" + queryString : newPath );
+                        location.hash = defaultOptions.hashPrefix + defaultOptions.routePrefix + (queryString ? newPath + "?" + queryString : newPath);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    function isPathMatchedByRouteSegments(path, routeSegments) {
+
+        var routeSegment,
+            pathSegments;
+
+        if (!path) {
+            return;
+        }
+
+        pathSegments = path.split("/");
 
-		location.hash = newHash;
+        if (pathSegments.length !== routeSegments.length) {
+            return;
+        }
+        var isMatched = true;
+
+        for (var i = 0; i < pathSegments.length; i++) {
 
-	}
+            routeSegment = routeSegments[i];
+
+            //if routeSegment is model path
+            //don't need to match
+            if (routeSegment.startsWith(":")) {
+                continue;
+            }
 
-	//when model change try to update the route by
-	//enumerating the the list of segment patterns array
-	//if one segment patterns array match the current route, then
-	//enumerate the segment patterns array to find out if
-	//a pattern's model path is equal to the path of the changed model
-	//then update the path with the updated model's value
-	function updatePathOnModelChange( e ) {
+            if (routeSegment != pathSegments[i]) {
+                isMatched = false;
+                break;
+            }
+        }
 
-		var routeSegment,
-			pathSegments,
-			newPath,
-			queryString,
-			modelPathOfPublisher = e.publisher.path,
-			routeSegments = e.handler.options,
-			path = getCurrentPath();
+        return isMatched;
+    }
 
-		if (isPathMatchedByRouteSegments( path, routeSegments )) {
+    //check if current segment string is matched with segment patterns, and return matched status
+    //if matched also update the model value with the segment value
+    //if this method is called in registration process, also registration handler to subscribe
+    //the change of model, when model change update the segment string
+    function processPathWithRouteSegments(path, routeSegments, isRegistration) {
 
-			pathSegments = path.split( "/" );
+        var routeSegment,
+            pathSegments,
+            modelPathInRouteSegment,
+            isPathMatched = isPathMatchedByRouteSegments(path, routeSegments);
 
-			for (var j = 0; j < pathSegments.length; j++) {
-
-				routeSegment = routeSegments[j];
+        pathSegments = path.split("/");
 
-				if (routeSegment.startsWith( ":" )) {
+        for (var i = 0; i < routeSegments.length; i++) {
 
-					var modelPathInRouteSegment = routeSegment.substr( 1 );
+            routeSegment = routeSegments[i];
+
+            if (routeSegment.startsWith(":")) {
+                modelPathInRouteSegment = routeSegment.substr(1);
+
+                if (isPathMatched) {
+                    rootNode.set(modelPathInRouteSegment, pathSegments[i]);
+                }
 
-					if (modelPathInRouteSegment == modelPathOfPublisher) {
+                if (isRegistration) {
+                    hm.sub(null/* null subscriber*/, modelPathInRouteSegment, "afterUpdate", updatePathOnModelChange, routeSegments);
+                }
+            }
+        }
 
-						pathSegments[j] = rootNode.get( modelPathOfPublisher );
-						newPath = pathSegments.join( "/" );
-						queryString = getQueryString();
-						console.log( queryString ? newPath + "?" + queryString : newPath );
-						location.hash = queryString ? newPath + "?" + queryString : newPath;
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	function isPathMatchedByRouteSegments( path, routeSegments ) {
+        return isPathMatched;
+    }
 
-		var routeSegment,
-			pathSegments;
+    function replaceUrlWithModelState(segmentString, stateInQueryString) {
 
-		if (!path) {
-			return;
-		}
+        var isEmptyQuery = $.isEmptyObject(stateInQueryString);
+        if (!segmentString && isEmptyQuery) {
+            return;
+        }
 
-		pathSegments = path.split( "/" );
+        var currentHash = location.hash,
+            urlPath = location.href.replace(currentHash, ""),
+            newHash = defaultOptions.hashPrefix + defaultOptions.routePrefix + segmentString + (isEmptyQuery ? "" : "?" + $.param(stateInQueryString)),
+            newUrl = urlPath + "#" + newHash;
 
-		if (pathSegments.length !== routeSegments.length) {
-			return;
-		}
-		var isMatched = true;
+        if (history.replaceState) {
+            history.replaceState(null, null, newUrl);
 
-		for (var i = 0; i < pathSegments.length; i++) {
+        } else {
+            location.href = newUrl;
 
-			routeSegment = routeSegments[i];
+        }
+    }
 
-			//if routeSegment is model path
-			//don't need to match
-			if (routeSegment.startsWith( ":" )) {
-				continue;
-			}
+    //register the model path which will be tracked through the query string
+    //routeParams should be called after model initialization
+    //but before subscription registration,
+    // so that the state in query string can be restored
+    hm.routeParams = function (/* path1, path2, .. */) {
 
-			if (routeSegment != pathSegments[i]) {
-				isMatched = false;
-				break;
-			}
-		}
+        var i,
+            modelPath,
+            args = arguments,
+            stateInQueryString = getStateFromQueryString();
 
-		return isMatched;
-	}
+        //update the model if model path is in query string
+        for (i = 0; i < args.length; i++) {
 
-	//check if current segment string is matched with segment patterns, and return matched status
-	//if matched also update the model value with the segment value
-	//if this method is called in registration process, also registration handler to subscribe
-	//the change of model, when model change update the segment string
-	function processPathWithRouteSegments( path, routeSegments, isRegistration ) {
+            modelPath = args[i];
 
-		var routeSegment,
-			pathSegments,
-			modelPathInRouteSegment,
-			isPathMatched = isPathMatchedByRouteSegments( path, routeSegments );
+            //if modelPath is in the query string
+            //update the model with the value in query string
+            if (modelPath in stateInQueryString) {
 
-		pathSegments = path.split( "/" );
+                rootNode.set(modelPath, stateInQueryString[modelPath]);
+            }
 
-		for (var i = 0; i < routeSegments.length; i++) {
+            //update query string when model change
+            hm.sub(null, modelPath, "afterUpdate", updateQueryStringOnModelChange);
+            paramPaths.push(args[i]);
+        }
 
-			routeSegment = routeSegments[i];
+        return this;
+    };
 
-			if (routeSegment.startsWith( ":" )) {
-				modelPathInRouteSegment = routeSegment.substr( 1 );
-
-				if (isPathMatched) {
-					rootNode.set( modelPathInRouteSegment, pathSegments[i] );
-				}
+    hmFn.routeParams = function (subPath) {
 
-				if (isRegistration) {
-					hm.sub( null/* null subscriber*/, modelPathInRouteSegment, "afterUpdate", updatePathOnModelChange, routeSegments );
-				}
-			}
-		}
+        var model = this;
+
+        hm.routeParams.apply(
 
-		return isPathMatched;
-	}
+            hm,
+
+            $.map(subPath ? arguments : [""],
+                function (subPath) {
+                    return model.getPath(subPath);
+                }
+            )
+        );
 
-	function replaceUrlWithModelState( segmentString, stateInQueryString ) {
+        return model;
 
-		var isEmptyQuery = $.isEmptyObject( stateInQueryString );
-		if (!segmentString && isEmptyQuery) {
-			return;
-		}
+    };
 
-		var currentHash = location.hash,
-			urlPath = location.href.replace( currentHash, "" ),
-			newHash = segmentString + (isEmptyQuery ? "" : "?" + $.param( stateInQueryString )),
-			newUrl = urlPath + "#" + newHash;
+    //register the segment patterns which will be used to match a path
+    //a path is consists of multiple segment
+    // A path like "/public/config/personal", consist of segments ["public", "config", "personal"]
+    //this method try to use a matcher to test each segments
+    //hm.route(segmentMatcher1, segmentMatcher2, ...)
+    //each segment matcher is like [path, matcher]
+    //so it is like
+    //hm.route([path1, matcher1], [path2, matcher2], ...);
+    //example of segment pattern are as following
+    //string eg:  "public", which is a fixed value, which does not mapped to a model
+    //the following mapped to a model
+    //array eg: [ "modelPath", null] or [ "modelPath"], constraint is null
+    //array eg: [ "modelPath", "fixedValue" ], constraint is "fixedValue"
+    //array eg: [ "modelPath", /regex/ ], constraint is regular expression
+    //array eg: [ "modelPath", function (segment) { return boolean; } ], constraint is a function
+    hm.routePath = function (route, isDefault) {
 
-		if (history.replaceState) {
-			history.replaceState( null, null, newUrl );
+        var routeSegments = route.split("/");
 
-		} else {
-			location.href = newUrl;
+        listOfRouteSegments.push(routeSegments);
 
-		}
-	}
+        if (isDefault) {
+            defaultRouteSegments = routeSegments;
+        }
 
-	//register the model path which will be tracked through the query string
-	//routeParams should be called after model initialization
-	//but before subscription registration,
-	// so that the state in query string can be restored
-	hm.routeParams = function( /* path1, path2, .. */ ) {
+        var currentPath = getCurrentPath();
 
-		var i,
-			modelPath,
-			args = arguments,
-			stateInQueryString = getStateFromQueryString();
+        if (processPathWithRouteSegments(currentPath, routeSegments, true)) {
+            initialRouteMatchedByPatterns = true;
+        }
+    };
 
-		//update the model if model path is in query string
-		for (i = 0; i < args.length; i++) {
+    hm.updateRoute = function /*updateModelWhenHashChanged*/() {
 
-			modelPath = args[i];
 
-			//if modelPath is in the query string
-			//update the model with the value in query string
-			if (modelPath in stateInQueryString) {
+        //update model when segment string change
+        var i, modelPath,
+            segmentString = getCurrentPath(),
+            stateInQueryString = getStateFromQueryString();
 
-				rootNode.set( modelPath, stateInQueryString[modelPath] );
-			}
+        if (segmentString) {
+            for (i = 0; i < listOfRouteSegments.length; i++) {
+                if (processPathWithRouteSegments(segmentString, listOfRouteSegments[i])) {
+                    //shortcut when the first segment patterns match
+                    break;
+                }
+            }
 
-			//update query string when model change
-			hm.sub( null, modelPath, "afterUpdate", updateQueryStringOnModelChange );
-			paramPaths.push( args[i] );
-		}
+            //if segmentString is empty and it has defaultSegmentPattern
+            //try to build a segment string from the default segment patterns
+        } else if (defaultRouteSegments) {
 
-		return this;
-	};
+            var segments = [];
+            for (i = 0; i < defaultRouteSegments.length; i++) {
 
-	hmFn.routeParams = function( subPath ) {
+                var segmentPattern = defaultRouteSegments[i];
 
-		var model = this;
+                if (isString(segmentPattern)) {
+                    segments.push(segmentPattern);
 
-		hm.routeParams.apply(
+                } else {
 
-			hm,
+                    var modelValue = rootNode.get(segmentPattern[0]) + "";
+                    segments.push(modelValue || segmentPattern.defaultValue || "");
+                }
+            }
 
-			$.map( subPath ? arguments : [""],
-				function( subPath ) {
-					return model.getPath( subPath );
-				}
-			)
-		);
+            segmentString = segments.join("/");
+        }
 
-		return model;
+        //update model when query string change
+        for (modelPath in stateInQueryString) {
+            if (paramPaths.contains(modelPath)) {
+                rootNode.set(modelPath, stateInQueryString[modelPath]);
+            }
+        }
 
-	};
+        //update state in query string
+        for (i = 0; i < paramPaths.length; i++) {
+            modelPath = paramPaths[i];
+            stateInQueryString[modelPath] = rootNode.get(modelPath);
+        }
+        //
+        replaceUrlWithModelState(segmentString, stateInQueryString);
+    };
 
-	//register the segment patterns which will be used to match a path
-	//a path is consists of multiple segment
-	// A path like "/public/config/personal", consist of segments ["public", "config", "personal"]
-	//this method try to use a matcher to test each segments
-	//hm.route(segmentMatcher1, segmentMatcher2, ...)
-	//each segment matcher is like [path, matcher]
-	//so it is like
-	//hm.route([path1, matcher1], [path2, matcher2], ...);
-	//example of segment pattern are as following
-	//string eg:  "public", which is a fixed value, which does not mapped to a model
-	//the following mapped to a model
-	//array eg: [ "modelPath", null] or [ "modelPath"], constraint is null
-	//array eg: [ "modelPath", "fixedValue" ], constraint is "fixedValue"
-	//array eg: [ "modelPath", /regex/ ], constraint is regular expression
-	//array eg: [ "modelPath", function (segment) { return boolean; } ], constraint is a function
-	hm.routePath = function( route, isDefault ) {
+    //update model when hash change
+    $(window).bind("hashchange", hm.updateRoute);
 
-		var routeSegments = route.split( "/" );
+    $(function () {
 
-		listOfRouteSegments.push( routeSegments );
+        //try to build the initial hash from the model
 
-		if (isDefault) {
-			defaultRouteSegments = routeSegments;
-		}
+        var i, route = "";
 
-		var currentPath = getCurrentPath();
+        //if there is default segment pattern and the initial segment string
+        //is not matched by any patterns, then use the default segment pattern
+        //to build the segment string
+        if (defaultRouteSegments && !initialRouteMatchedByPatterns) {
 
-		if (processPathWithRouteSegments( currentPath, routeSegments, true )) {
-			initialRouteMatchedByPatterns = true;
-		}
-	};
+            var pathSegments = [];
+            for (i = 0; i < defaultRouteSegments.length; i++) {
+                var routeSegment = defaultRouteSegments[i];
 
-	hm.updateRoute = function /*updateModelWhenHashChanged*/() {
+                if (routeSegment.startsWith(":")) {
 
+                    pathSegments.push(rootNode.get(routeSegment.substr(1)) + "");
 
-		//update model when segment string change
-		var i, modelPath,
-			segmentString = getCurrentPath(),
-			stateInQueryString = getStateFromQueryString();
+                } else {
 
-		if (segmentString) {
-			for (i = 0; i < listOfRouteSegments.length; i++) {
-				if (processPathWithRouteSegments( segmentString, listOfRouteSegments[i] )) {
-					//shortcut when the first segment patterns match
-					break;
-				}
-			}
+                    pathSegments.push(routeSegment);
+                }
+            }
 
-			//if segmentString is empty and it has defaultSegmentPattern
-			//try to build a segment string from the default segment patterns
-		} else if (defaultRouteSegments) {
+            route = pathSegments.join("/");
 
-			var segments = [];
-			for (i = 0; i < defaultRouteSegments.length; i++) {
+        } else {
 
-				var segmentPattern = defaultRouteSegments[i];
+            route = getCurrentPath();
+        }
 
-				if (isString( segmentPattern )) {
-					segments.push( segmentPattern );
+        var stateInQueryString = getStateFromQueryString();
 
-				} else {
-
-					var modelValue = rootNode.get( segmentPattern[0] ) + "";
-					segments.push( modelValue || segmentPattern.defaultValue || "" );
-				}
-			}
-
-			segmentString = segments.join( "/" );
-		}
-
-		//update model when query string change
-		for (modelPath in stateInQueryString) {
-			if (paramPaths.contains( modelPath )) {
-				rootNode.set( modelPath, stateInQueryString[modelPath] );
-			}
-		}
-
-		//update state in query string
-		for (i = 0; i < paramPaths.length; i++) {
-			modelPath = paramPaths[i];
-			stateInQueryString[modelPath] = rootNode.get( modelPath );
-		}
-		//
-		replaceUrlWithModelState( segmentString, stateInQueryString );
-	};
-
-	//update model when hash change
-	$( window ).bind( "hashchange", hm.updateRoute );
-
-	$( function() {
-
-		//try to build the initial hash from the model
-
-		var i, route = "";
-
-		//if there is default segment pattern and the initial segment string
-		//is not matched by any patterns, then use the default segment pattern
-		//to build the segment string
-		if (defaultRouteSegments && !initialRouteMatchedByPatterns) {
-
-			var pathSegments = [];
-			for (i = 0; i < defaultRouteSegments.length; i++) {
-				var routeSegment = defaultRouteSegments[i];
-
-				if (routeSegment.startsWith( ":" )) {
-
-					pathSegments.push( rootNode.get( routeSegment.substr( 1 ) ) + "" );
-
-				} else {
-
-					pathSegments.push( routeSegment );
-				}
-			}
-
-			route = pathSegments.join( "/" );
-
-		} else {
-
-			route = getCurrentPath();
-		}
-
-		var stateInQueryString = getStateFromQueryString();
-
-		//update state in query string
-		for (i = 0; i < paramPaths.length; i++) {
-			var modelPath = paramPaths[i];
-			stateInQueryString[modelPath] = rootNode.get( modelPath );
-		}
-		replaceUrlWithModelState( route, stateInQueryString );
-	} );
+        //update state in query string
+        for (i = 0; i < paramPaths.length; i++) {
+            var modelPath = paramPaths[i];
+            stateInQueryString[modelPath] = rootNode.get(modelPath);
+        }
+        replaceUrlWithModelState(route, stateInQueryString);
+    });
 
 
 //
